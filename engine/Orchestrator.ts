@@ -6,7 +6,7 @@ export class OrchestratorEngine {
   nextImageId: string | null = null; // Lookahead buffer
   history: string[] = [];
   queue: string[] = []; // Explicit queue
-  
+
   constructor() {}
 
   /**
@@ -22,9 +22,9 @@ export class OrchestratorEngine {
    */
   advance(): boolean {
     if (this.nextImageId) {
-        this.registerHistory(this.nextImageId);
-        this.nextImageId = null; // Clear buffer
-        return true;
+      this.registerHistory(this.nextImageId);
+      this.nextImageId = null; // Clear buffer
+      return true;
     }
     return false;
   }
@@ -44,14 +44,16 @@ export class OrchestratorEngine {
 
     // 2. Sequential Logic
     if (mode === 'sequential') {
-      const currentIndex = images.findIndex(img => img.id === (this.nextImageId || this.currentImageId));
+      const currentIndex = images.findIndex(
+        img => img.id === (this.nextImageId || this.currentImageId)
+      );
       const nextIndex = (currentIndex + 1) % images.length;
       this.nextImageId = images[nextIndex].id;
       return;
     }
 
     // 3. Smart Shuffle (AI + Synaptic Weighting)
-    
+
     // A. Context Setup
     const contextId = this.nextImageId || this.currentImageId;
     const currentImg = images.find(img => img.id === contextId);
@@ -59,10 +61,10 @@ export class OrchestratorEngine {
 
     // B. Basic Filtering (Remove recent history & self)
     // We look further back (15 items) to prevent repetitive loops in smart mode
-    const candidates = images.filter(img => 
-        !this.history.slice(-15).includes(img.id) && img.id !== contextId
+    const candidates = images.filter(
+      img => !this.history.slice(-15).includes(img.id) && img.id !== contextId
     );
-    
+
     // Safety check: if candidates empty (small library), fall back to full list excluding self
     let pool = candidates.length > 0 ? candidates : images.filter(i => i.id !== contextId);
     if (pool.length === 0) pool = images; // Fallback to anything
@@ -70,35 +72,29 @@ export class OrchestratorEngine {
     // C. Synaptic Weighting (The "Graph" Logic)
     // If we have a current image, we prioritize nodes that share tags (Synapses).
     if (currentTags.length > 0) {
-        const connectedCandidates = pool.filter(cand => 
-            cand.tags.some(t => currentTags.includes(t))
-        );
+      const connectedCandidates = pool.filter(cand => cand.tags.some(t => currentTags.includes(t)));
 
-        if (connectedCandidates.length > 0) {
-            // STRATEGY: "Threaded Narrative"
-            // We construct a pool that is heavily biased towards connected nodes (80%),
-            // but includes a few random unconnected nodes (20%) to allow the AI to "drift" 
-            // or "pivot" if the current thread is exhausted or boring.
-            
-            const unconnectedCandidates = pool.filter(c => !connectedCandidates.includes(c));
-            
-            // Take up to 10 connected nodes
-            const primaryPool = connectedCandidates.slice(0, 10);
-            
-            // Take up to 3 unconnected nodes (for visual contrast options)
-            const driftPool = unconnectedCandidates.slice(0, 3);
-            
-            pool = [...primaryPool, ...driftPool];
-        }
+      if (connectedCandidates.length > 0) {
+        // STRATEGY: "Threaded Narrative"
+        // We construct a pool that is heavily biased towards connected nodes (80%),
+        // but includes a few random unconnected nodes (20%) to allow the AI to "drift"
+        // or "pivot" if the current thread is exhausted or boring.
+
+        const unconnectedCandidates = pool.filter(c => !connectedCandidates.includes(c));
+
+        // Take up to 10 connected nodes
+        const primaryPool = connectedCandidates.slice(0, 10);
+
+        // Take up to 3 unconnected nodes (for visual contrast options)
+        const driftPool = unconnectedCandidates.slice(0, 3);
+
+        pool = [...primaryPool, ...driftPool];
+      }
     }
 
     // D. Consult The Oracle (Gemini)
     // We pass our curated "Synaptic Pool" to Gemini for the final aesthetic decision.
-    const suggestedId = await suggestNextImage(
-        currentTags,
-        pool.map(img => ({ id: img.id, tags: img.tags })),
-        this.history
-    );
+    const suggestedId = await suggestNextImage(currentTags, pool, this.history);
 
     this.nextImageId = suggestedId || pool[0].id;
   }
@@ -106,9 +102,9 @@ export class OrchestratorEngine {
   /**
    * Fallback for immediate synchronous requirements
    */
-  getNext(images: ImageAsset[], mode: 'sequential' | 'smart-shuffle'): string | null {
+  getNext(images: ImageAsset[], _mode: 'sequential' | 'smart-shuffle'): string | null {
     if (images.length === 0) return null;
-    
+
     // Quick Random
     const candidates = images.filter(img => !this.history.slice(-5).includes(img.id));
     const pool = candidates.length > 0 ? candidates : images;

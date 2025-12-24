@@ -10,12 +10,12 @@ const REASONING_MODEL = 'gemini-2.0-flash';
 
 // --- NEURAL GOVERNOR SYSTEM ---
 // Centralized traffic controller for Gemini API
-type NeuralTask = () => Promise<any>;
+type NeuralTask<T = unknown> = () => Promise<T>;
 
 interface QueueItem {
   task: NeuralTask;
-  resolve: (val: any) => void;
-  reject: (err: any) => void;
+  resolve: (val: unknown) => void;
+  reject: (err: unknown) => void;
   priority: 'high' | 'low';
 }
 
@@ -39,7 +39,7 @@ class NeuralGovernor {
     // 1. Idempotence / In-Flight Check
     if (key && this.activeKeys.has(key)) {
       this.onLog(`[GOVERNOR] Skipped duplicate request for ${key}`, 'warn');
-      return Promise.resolve(null as any); // Return null to indicate skipped
+      return Promise.resolve(null as T); // Return null to indicate skipped
     }
 
     if (key) this.activeKeys.add(key);
@@ -57,8 +57,8 @@ class NeuralGovernor {
 
       const item: QueueItem = {
         task: wrappedTask,
-        resolve,
-        reject,
+        resolve: resolve as (val: unknown) => void,
+        reject: reject as (err: unknown) => void,
         priority,
       };
 
@@ -104,8 +104,8 @@ class NeuralGovernor {
       item
         .task()
         .then(item.resolve)
-        .catch((error: any) => {
-          const msg = error.message || '';
+        .catch((error: unknown) => {
+          const msg = error instanceof Error ? error.message : String(error);
           const isQuota =
             msg.includes('429') ||
             msg.includes('RESOURCE_EXHAUSTED') ||
@@ -377,9 +377,9 @@ export const curateReelSequence = async (images: ImageAsset[]): Promise<ReelCura
 };
 
 export const suggestNextImage = async (
-  tags: string[],
-  pool: any[],
-  history: string[]
+  _tags: string[],
+  _pool: ImageAsset[],
+  _history: string[]
 ): Promise<string | null> => {
   return governor.enqueue(async () => {
     const response: GenerateContentResponse = await ai.models.generateContent({
