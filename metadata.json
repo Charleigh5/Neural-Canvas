@@ -1,0 +1,8 @@
+{
+  "name": "Neural Canvas & Orchestrator",
+  "description": "A high-performance React application combining an infinite canvas for photo management with an AI-driven slideshow orchestrator supporting quad-monitor simulation.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

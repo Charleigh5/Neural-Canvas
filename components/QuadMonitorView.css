@@ -1,0 +1,74 @@
+/* QuadMonitorView.css */
+
+/* Perspective Transforms */
+.perspective-container {
+  transition: transform 700ms ease-in-out;
+}
+
+.perspective-flat {
+  transform: none;
+}
+
+.perspective-dutch {
+  transform: rotate(-3deg) scale(0.9);
+}
+
+.perspective-low-angle {
+  transform: perspective(1000px) rotateX(5deg) scale(0.95);
+}
+
+.perspective-overhead {
+  transform: perspective(1000px) rotateX(-5deg) scale(0.95);
+}
+
+.perspective-immersive {
+  transform: scale(1.1);
+}
+
+/* Bezel Themes */
+.bezel-container {
+  transition: all 500ms;
+}
+
+.bezel-christmas {
+  border: 24px solid #3f0e0e;
+  box-shadow: 0 0 150px rgba(220, 38, 38, 0.2);
+}
+
+.bezel-gold {
+  border: 16px solid #b45309;
+  box-shadow: 0 0 80px rgba(234, 179, 8, 0.3);
+}
+
+.bezel-frost {
+  border: 16px solid #155e75;
+  box-shadow: 0 0 80px rgba(34, 211, 238, 0.2);
+}
+
+.bezel-candy {
+  border: 20px solid #ec4899;
+  box-shadow: 0 0 80px rgba(236, 72, 153, 0.3);
+}
+
+.bezel-standard {
+  border: 4px solid #111;
+  box-shadow: none;
+}
+
+.bezel-custom {
+  border: 20px solid var(--bezel-color, #111);
+  box-shadow: 0 0 120px var(--bezel-shadow-color, rgba(0, 0, 0, 0.5));
+}
+
+/* Dynamic Texture Overlay */
+.bezel-texture-overlay {
+  border-image-source: var(--texture-source, none);
+  border-image-slice: 1;
+  background: var(--texture-background, none);
+  -webkit-mask-image: linear-gradient(black, black), linear-gradient(black, black);
+  mask-image: linear-gradient(black, black), linear-gradient(black, black);
+  -webkit-mask-clip: content-box, border-box;
+  mask-clip: content-box, border-box;
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}

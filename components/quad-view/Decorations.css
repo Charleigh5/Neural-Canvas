@@ -1,0 +1,42 @@
+/* Decorations.css */
+
+.festive-bulb {
+  margin-top: var(--y-offset);
+  animation-delay: var(--delay);
+  animation-duration: var(--duration);
+}
+
+.festive-bulb-inner {
+  box-shadow: 0 0 12px var(--glow);
+  animation-duration: var(--pulse-duration);
+}
+
+.garland-light-container {
+  top: var(--top);
+  left: var(--left);
+  z-index: 50;
+}
+
+.garland-light-bulb {
+  background-color: var(--color);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  transform: rotate(var(--rotation));
+}
+
+.garland-light-string {
+  height: 12px;
+}
+
+@keyframes swing {
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+.animate-swing {
+  animation: swing ease-in-out infinite;
+}
