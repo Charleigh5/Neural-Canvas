@@ -10,7 +10,12 @@ import { AppMode } from './types';
 import { AudioController } from './components/AudioController';
 
 export default function App() {
-  const { mode, playback, nextSlide } = useStore();
+  const { mode, playback, nextSlide, hydrateFromDB } = useStore();
+
+  // Hydrate persisted data from IndexedDB on mount
+  useEffect(() => {
+    hydrateFromDB();
+  }, [hydrateFromDB]);
 
   // Playback Loop
   useEffect(() => {

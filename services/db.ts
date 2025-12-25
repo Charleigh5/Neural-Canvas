@@ -1,95 +1,178 @@
-
 /**
  * DB.TS - High-Performance Binary Storage Service
- * Utilizes IndexedDB to store raw media assets (Base64/Blobs) 
- * preventing localStorage overflow and enabling large libraries.
+ * Utilizes IndexedDB to store raw media assets (Base64/Blobs),
+ * saved reels, themes, and app state for full persistence.
  */
 
+import { SavedReel, ThemeConfig } from '../types';
+
 const DB_NAME = 'StudioOS_Asset_Vault';
-const STORE_NAME = 'media_blobs';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Bumped for new stores
+
+// Store names
+const MEDIA_STORE = 'media_blobs';
+const REELS_STORE = 'saved_reels';
+const THEMES_STORE = 'saved_themes';
 
 export class AssetDB {
-    private db: IDBDatabase | null = null;
+  private db: IDBDatabase | null = null;
 
-    private async getDB(): Promise<IDBDatabase> {
-        if (this.db) return this.db;
+  private async getDB(): Promise<IDBDatabase> {
+    if (this.db) return this.db;
 
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open(DB_NAME, DB_VERSION);
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-            request.onupgradeneeded = (event: any) => {
-                const db = event.target.result;
-                if (!db.objectStoreNames.contains(STORE_NAME)) {
-                    db.createObjectStore(STORE_NAME);
-                }
-            };
+      request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
+        const db = (event.target as IDBOpenDBRequest).result;
 
-            request.onsuccess = (event: any) => {
-                this.db = event.target.result;
-                resolve(this.db!);
-            };
+        // Media blobs store (existing)
+        if (!db.objectStoreNames.contains(MEDIA_STORE)) {
+          db.createObjectStore(MEDIA_STORE);
+        }
 
-            request.onerror = (event: any) => {
-                console.error('IDB Initialization Failed', event);
-                reject(event);
-            };
-        });
-    }
+        // Reels store (new)
+        if (!db.objectStoreNames.contains(REELS_STORE)) {
+          db.createObjectStore(REELS_STORE, { keyPath: 'id' });
+        }
 
-    /**
-     * Stores a data URL or Blob in the vault.
-     */
-    async save(id: string, data: string | Blob): Promise<void> {
-        const db = await this.getDB();
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction([STORE_NAME], 'readwrite');
-            const store = transaction.objectStore(STORE_NAME);
-            const request = store.put(data, id);
+        // Themes store (new)
+        if (!db.objectStoreNames.contains(THEMES_STORE)) {
+          db.createObjectStore(THEMES_STORE, { keyPath: 'id' });
+        }
+      };
 
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
-        });
-    }
+      request.onsuccess = event => {
+        this.db = (event.target as IDBOpenDBRequest).result;
+        resolve(this.db);
+      };
 
-    /**
-     * Retrieves an asset from the vault.
-     */
-    async get(id: string): Promise<string | Blob | null> {
-        const db = await this.getDB();
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction([STORE_NAME], 'readonly');
-            const store = transaction.objectStore(STORE_NAME);
-            const request = store.get(id);
+      request.onerror = event => {
+        console.error('IDB Initialization Failed', event);
+        reject(event);
+      };
+    });
+  }
 
-            request.onsuccess = () => resolve(request.result || null);
-            request.onerror = () => reject(request.error);
-        });
-    }
+  // ============ MEDIA BLOBS ============
 
-    /**
-     * Purges an asset from the vault.
-     */
-    async delete(id: string): Promise<void> {
-        const db = await this.getDB();
-        return new Promise((resolve, reject) => {
-            const transaction = db.transaction([STORE_NAME], 'readwrite');
-            const store = transaction.objectStore(STORE_NAME);
-            const request = store.delete(id);
+  async save(id: string, data: string | Blob): Promise<void> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([MEDIA_STORE], 'readwrite');
+      const store = transaction.objectStore(MEDIA_STORE);
+      const request = store.put(data, id);
 
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
-        });
-    }
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
 
-    /**
-     * Clears all assets. Use with caution.
-     */
-    async clearAll(): Promise<void> {
-        const db = await this.getDB();
-        const transaction = db.transaction([STORE_NAME], 'readwrite');
-        transaction.objectStore(STORE_NAME).clear();
-    }
+  async get(id: string): Promise<string | Blob | null> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([MEDIA_STORE], 'readonly');
+      const store = transaction.objectStore(MEDIA_STORE);
+      const request = store.get(id);
+
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async delete(id: string): Promise<void> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([MEDIA_STORE], 'readwrite');
+      const store = transaction.objectStore(MEDIA_STORE);
+      const request = store.delete(id);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async clearAll(): Promise<void> {
+    const db = await this.getDB();
+    const transaction = db.transaction([MEDIA_STORE], 'readwrite');
+    transaction.objectStore(MEDIA_STORE).clear();
+  }
+
+  // ============ SAVED REELS ============
+
+  async saveReel(reel: SavedReel): Promise<void> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([REELS_STORE], 'readwrite');
+      const store = transaction.objectStore(REELS_STORE);
+      const request = store.put(reel);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async getAllReels(): Promise<SavedReel[]> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([REELS_STORE], 'readonly');
+      const store = transaction.objectStore(REELS_STORE);
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async deleteReel(id: string): Promise<void> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([REELS_STORE], 'readwrite');
+      const store = transaction.objectStore(REELS_STORE);
+      const request = store.delete(id);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // ============ SAVED THEMES ============
+
+  async saveTheme(theme: ThemeConfig): Promise<void> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([THEMES_STORE], 'readwrite');
+      const store = transaction.objectStore(THEMES_STORE);
+      const request = store.put(theme);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async getAllThemes(): Promise<ThemeConfig[]> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([THEMES_STORE], 'readonly');
+      const store = transaction.objectStore(THEMES_STORE);
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async deleteTheme(id: string): Promise<void> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([THEMES_STORE], 'readwrite');
+      const store = transaction.objectStore(THEMES_STORE);
+      const request = store.delete(id);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
 }
 
 export const assetDB = new AssetDB();

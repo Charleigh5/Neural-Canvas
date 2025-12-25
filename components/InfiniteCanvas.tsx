@@ -1,123 +1,117 @@
-import React, {
-  useRef,
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-} from "react";
-import { Stage, Layer, Line, Group } from "react-konva";
-import Konva from "konva";
-import { useStore } from "../store/useStore";
-import { ImageAsset } from "../types";
-import { motion, AnimatePresence } from "framer-motion";
-import { FloatingNanoForge } from "./FloatingNanoForge";
-import { SelectionToolbar } from "./SelectionToolbar";
-import { useShallow } from "zustand/react/shallow";
-import { UploadCloud } from "lucide-react";
-import { MidnightGrid } from "./canvas/MidnightGrid";
-import { CanvasNode } from "./canvas/CanvasNode";
-import { canvasWorker } from "../services/canvasWorkerService";
+import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
+import { Stage, Layer, Line, Group } from 'react-konva';
+import Konva from 'konva';
+import { useStore } from '../store/useStore';
+import { ImageAsset } from '../types';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FloatingNanoForge } from './FloatingNanoForge';
+import { SelectionToolbar } from './SelectionToolbar';
+import { useShallow } from 'zustand/react/shallow';
+import { UploadCloud } from 'lucide-react';
+import { MidnightGrid } from './canvas/MidnightGrid';
+import { CanvasNode } from './canvas/CanvasNode';
+import { canvasWorker } from '../services/canvasWorkerService';
+import { useFrustumCull } from '../hooks/useFrustumCull';
 
-const getDistance = (
-  p1: { x: number; y: number },
-  p2: { x: number; y: number }
-) => Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-const getCenter = (
-  p1: { x: number; y: number },
-  p2: { x: number; y: number }
-) => ({ x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 });
+const getDistance = (p1: { x: number; y: number }, p2: { x: number; y: number }) =>
+  Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+const getCenter = (p1: { x: number; y: number }, p2: { x: number; y: number }) => ({
+  x: (p1.x + p2.x) / 2,
+  y: (p1.y + p2.y) / 2,
+});
 
 // --- SYNAPTIC LAYER: Visualizes AI Reasoning ---
-const SynapticLayer = React.memo(
-  ({
-    images,
-    hoveredId,
-  }: {
-    images: ImageAsset[];
-    hoveredId: string | null;
-  }) => {
-    const groupRef = useRef<Konva.Group>(null);
-    const [lines, setLines] = useState<any[]>([]);
+interface SynapseLineData {
+  key: string;
+  points: number[];
+  stroke: string;
+  strokeWidth: number;
+  opacity: number;
+}
 
-    // Offload complex O(N^2) graph calculations to the worker thread
-    useEffect(() => {
-      let isMounted = true;
+const SynapticLayer = React.memo(function SynapticLayerInner({
+  images,
+  hoveredId,
+}: {
+  images: ImageAsset[];
+  hoveredId: string | null;
+}) {
+  const groupRef = useRef<Konva.Group>(null);
+  const [lines, setLines] = useState<SynapseLineData[]>([]);
 
-      const compute = async () => {
-        try {
-          // Ensure worker is available before calling
-          if (canvasWorker) {
-            const result = await canvasWorker.calculateSynapses(
-              images,
-              hoveredId
-            );
-            if (isMounted) {
-              setLines(result || []);
-            }
+  // Offload complex O(N^2) graph calculations to the worker thread
+  useEffect(() => {
+    let isMounted = true;
+
+    const compute = async () => {
+      try {
+        // Ensure worker is available before calling
+        if (canvasWorker) {
+          const result = await canvasWorker.calculateSynapses(images, hoveredId);
+          if (isMounted) {
+            setLines(result || []);
           }
-        } catch (e) {
-          console.debug("Synapse calculation skipped", e);
         }
-      };
+      } catch (e) {
+        console.debug('Synapse calculation skipped', e);
+      }
+    };
 
-      compute();
+    compute();
 
-      return () => {
-        isMounted = false;
-      };
-    }, [images, hoveredId]);
+    return () => {
+      isMounted = false;
+    };
+  }, [images, hoveredId]);
 
-    // Handle GPU Caching for the static vector lines
-    useEffect(() => {
-      const node = groupRef.current;
-      if (node) {
-        node.clearCache();
-        if (lines.length > 0) {
-          try {
-            node.cache({ pixelRatio: 1 });
-          } catch (e) {
-            node.clearCache();
-          }
+  // Handle GPU Caching for the static vector lines
+  useEffect(() => {
+    const node = groupRef.current;
+    if (node) {
+      node.clearCache();
+      if (lines.length > 0) {
+        try {
+          node.cache({ pixelRatio: 1 });
+        } catch {
+          node.clearCache();
         }
       }
-    }, [lines]);
+    }
+  }, [lines]);
 
-    return (
-      <Group ref={groupRef} listening={false}>
-        {lines.map((line) => (
-          <Line
-            key={line.key}
-            points={line.points}
-            stroke={line.stroke}
-            strokeWidth={line.strokeWidth}
-            opacity={line.opacity}
-            listening={false}
-            tension={0.5}
-            perfectDrawEnabled={false}
-            shadowForStrokeEnabled={false}
-          />
-        ))}
-      </Group>
-    );
-  }
-);
+  return (
+    <Group ref={groupRef} listening={false}>
+      {lines.map(line => (
+        <Line
+          key={line.key}
+          points={line.points}
+          stroke={line.stroke}
+          strokeWidth={line.strokeWidth}
+          opacity={line.opacity}
+          listening={false}
+          tension={0.5}
+          perfectDrawEnabled={false}
+          shadowForStrokeEnabled={false}
+        />
+      ))}
+    </Group>
+  );
+});
 
 export const InfiniteCanvas: React.FC = () => {
-  const images = useStore(useShallow((state) => state.images));
-  const selectedIds = useStore(useShallow((state) => state.selectedIds));
-  const activeTool = useStore((state) => state.activeTool);
-  const forgeImageId = useStore((state) => state.forgeImageId);
-  const addImage = useStore((state) => state.addImage);
+  const images = useStore(useShallow(state => state.images));
+  const selectedIds = useStore(useShallow(state => state.selectedIds));
+  const activeTool = useStore(state => state.activeTool);
+  const forgeImageId = useStore(state => state.forgeImageId);
+  const addImage = useStore(state => state.addImage);
 
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isInteracting, setIsInteracting] = useState(false);
-  const [forgeAnchor, setForgeAnchor] = useState<
-    { x: number; y: number } | undefined
-  >(undefined);
-  const [snapLines, setSnapLines] = useState<
-    Array<{ vertical: boolean; x?: number; y?: number }>
-  >([]);
+  const [forgeAnchor, setForgeAnchor] = useState<{ x: number; y: number } | undefined>(undefined);
+  const [snapLines, setSnapLines] = useState<Array<{ vertical: boolean; x?: number; y?: number }>>(
+    []
+  );
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
@@ -135,163 +129,170 @@ export const InfiniteCanvas: React.FC = () => {
     scaleRef.current = scale;
   }, [scale]);
 
-  const snapFunc = useCallback(
-    (pos: { x: number; y: number }, activeId: string) => {
-      const scaleVal = scaleRef.current;
-      const BASE_THRESHOLD = 10 / scaleVal;
-      const GRID = 100;
-
-      const active = imagesRef.current.find((i) => i.id === activeId);
-      if (!active) return pos;
-
-      const w = active.width * active.scale;
-      const h = active.height * active.scale;
-
-      const getSnapStrength = (target: ImageAsset) => {
-        let strength = 1.0;
-        const targetArea =
-          target.width * target.scale * (target.height * target.scale);
-        const activeArea = w * h;
-        if (targetArea > activeArea * 1.5) strength += 0.5;
-        if (targetArea > activeArea * 3.0) strength += 0.8;
-        if (active.tags && target.tags) {
-          const commonTags = active.tags.some(
-            (t) =>
-              t.length > 2 &&
-              !["image", "photo", "upload", "generated"].includes(t) &&
-              target.tags.includes(t)
-          );
-          if (commonTags) strength += 2.0;
-        }
-        return strength;
-      };
-
-      let newX = pos.x;
-      let newY = pos.y;
-      const newLines: Array<{ vertical: boolean; x?: number; y?: number }> = [];
-      const xOffsets = [0, w / 2, w];
-      const yOffsets = [0, h / 2, h];
-
-      // --- X AXIS ---
-      let bestDistX = BASE_THRESHOLD;
-      let bestX = pos.x;
-      let snappedX = false;
-      let guideX: number | null = null;
-
-      // 1. Grid Snapping
-      for (const offset of xOffsets) {
-        const edgeX = pos.x + offset;
-        const rounded = Math.round(edgeX / GRID) * GRID;
-        const diff = Math.abs(edgeX - rounded);
-        if (diff < bestDistX) {
-          bestDistX = diff;
-          bestX = rounded - offset;
-          snappedX = true;
-          guideX = rounded;
-        }
-      }
-
-      // 2. Object Snapping
-      const searchBuffer = w + 600;
-      imagesRef.current.forEach((other) => {
-        if (other.id === activeId || other.isStackChild) return;
-        if (Math.abs(other.x - pos.x) > searchBuffer) return;
-
-        const strength = getSnapStrength(other);
-        const effectiveThreshold = BASE_THRESHOLD * strength;
-        const ow = other.width * other.scale;
-        const otherEdges = [other.x, other.x + ow / 2, other.x + ow];
-
-        xOffsets.forEach((offsetA) => {
-          otherEdges.forEach((edgeB) => {
-            const currentX = pos.x + offsetA;
-            const diff = Math.abs(currentX - edgeB);
-            if (diff < effectiveThreshold) {
-              if (diff < bestDistX) {
-                bestDistX = diff;
-                bestX = edgeB - offsetA;
-                snappedX = true;
-                guideX = edgeB;
-              }
-            }
-          });
-        });
-      });
-
-      if (snappedX && guideX !== null) {
-        newX = bestX;
-        newLines.push({ vertical: true, x: guideX });
-      }
-
-      // --- Y AXIS ---
-      let bestDistY = BASE_THRESHOLD;
-      let bestY = pos.y;
-      let snappedY = false;
-      let guideY: number | null = null;
-
-      for (const offset of yOffsets) {
-        const edgeY = pos.y + offset;
-        const rounded = Math.round(edgeY / GRID) * GRID;
-        const diff = Math.abs(edgeY - rounded);
-        if (diff < bestDistY) {
-          bestDistY = diff;
-          bestY = rounded - offset;
-          snappedY = true;
-          guideY = rounded;
-        }
-      }
-
-      const hBuffer = h + 600;
-      imagesRef.current.forEach((other) => {
-        if (other.id === activeId || other.isStackChild) return;
-        if (Math.abs(other.y - pos.y) > hBuffer) return;
-
-        const strength = getSnapStrength(other);
-        const effectiveThreshold = BASE_THRESHOLD * strength;
-        const oh = other.height * other.scale;
-        const otherEdges = [other.y, other.y + oh / 2, other.y + oh];
-
-        yOffsets.forEach((offsetA) => {
-          otherEdges.forEach((edgeB) => {
-            const currentY = pos.y + offsetA;
-            const diff = Math.abs(currentY - edgeB);
-            if (diff < effectiveThreshold) {
-              if (diff < bestDistY) {
-                bestDistY = diff;
-                bestY = edgeB - offsetA;
-                snappedY = true;
-                guideY = edgeB;
-              }
-            }
-          });
-        });
-      });
-
-      if (snappedY && guideY !== null) {
-        newY = bestY;
-        newLines.push({ vertical: false, y: guideY });
-      }
-
-      setSnapLines(newLines);
-      return { x: newX, y: newY };
-    },
-    []
+  // Frustum Culling: Only render nodes visible in the viewport
+  const viewport = useMemo(
+    () => ({
+      x: position.x,
+      y: position.y,
+      width: window.innerWidth,
+      height: window.innerHeight,
+      scale,
+    }),
+    [position.x, position.y, scale]
   );
 
-  const handleDragEnd = useCallback(
-    (id: string, pos: { x: number; y: number }) => {
-      useStore.getState().updateImage(id, pos);
-      setSnapLines([]);
-    },
-    []
-  );
+  const visibleImages = useFrustumCull(images, viewport, 500);
+
+  const snapFunc = useCallback((pos: { x: number; y: number }, activeId: string) => {
+    const scaleVal = scaleRef.current;
+    const BASE_THRESHOLD = 10 / scaleVal;
+    const GRID = 100;
+
+    const active = imagesRef.current.find(i => i.id === activeId);
+    if (!active) return pos;
+
+    const w = active.width * active.scale;
+    const h = active.height * active.scale;
+
+    const getSnapStrength = (target: ImageAsset) => {
+      let strength = 1.0;
+      const targetArea = target.width * target.scale * (target.height * target.scale);
+      const activeArea = w * h;
+      if (targetArea > activeArea * 1.5) strength += 0.5;
+      if (targetArea > activeArea * 3.0) strength += 0.8;
+      if (active.tags && target.tags) {
+        const commonTags = active.tags.some(
+          t =>
+            t.length > 2 &&
+            !['image', 'photo', 'upload', 'generated'].includes(t) &&
+            target.tags.includes(t)
+        );
+        if (commonTags) strength += 2.0;
+      }
+      return strength;
+    };
+
+    let newX = pos.x;
+    let newY = pos.y;
+    const newLines: Array<{ vertical: boolean; x?: number; y?: number }> = [];
+    const xOffsets = [0, w / 2, w];
+    const yOffsets = [0, h / 2, h];
+
+    // --- X AXIS ---
+    let bestDistX = BASE_THRESHOLD;
+    let bestX = pos.x;
+    let snappedX = false;
+    let guideX: number | null = null;
+
+    // 1. Grid Snapping
+    for (const offset of xOffsets) {
+      const edgeX = pos.x + offset;
+      const rounded = Math.round(edgeX / GRID) * GRID;
+      const diff = Math.abs(edgeX - rounded);
+      if (diff < bestDistX) {
+        bestDistX = diff;
+        bestX = rounded - offset;
+        snappedX = true;
+        guideX = rounded;
+      }
+    }
+
+    // 2. Object Snapping
+    const searchBuffer = w + 600;
+    imagesRef.current.forEach(other => {
+      if (other.id === activeId || other.isStackChild) return;
+      if (Math.abs(other.x - pos.x) > searchBuffer) return;
+
+      const strength = getSnapStrength(other);
+      const effectiveThreshold = BASE_THRESHOLD * strength;
+      const ow = other.width * other.scale;
+      const otherEdges = [other.x, other.x + ow / 2, other.x + ow];
+
+      xOffsets.forEach(offsetA => {
+        otherEdges.forEach(edgeB => {
+          const currentX = pos.x + offsetA;
+          const diff = Math.abs(currentX - edgeB);
+          if (diff < effectiveThreshold) {
+            if (diff < bestDistX) {
+              bestDistX = diff;
+              bestX = edgeB - offsetA;
+              snappedX = true;
+              guideX = edgeB;
+            }
+          }
+        });
+      });
+    });
+
+    if (snappedX && guideX !== null) {
+      newX = bestX;
+      newLines.push({ vertical: true, x: guideX });
+    }
+
+    // --- Y AXIS ---
+    let bestDistY = BASE_THRESHOLD;
+    let bestY = pos.y;
+    let snappedY = false;
+    let guideY: number | null = null;
+
+    for (const offset of yOffsets) {
+      const edgeY = pos.y + offset;
+      const rounded = Math.round(edgeY / GRID) * GRID;
+      const diff = Math.abs(edgeY - rounded);
+      if (diff < bestDistY) {
+        bestDistY = diff;
+        bestY = rounded - offset;
+        snappedY = true;
+        guideY = rounded;
+      }
+    }
+
+    const hBuffer = h + 600;
+    imagesRef.current.forEach(other => {
+      if (other.id === activeId || other.isStackChild) return;
+      if (Math.abs(other.y - pos.y) > hBuffer) return;
+
+      const strength = getSnapStrength(other);
+      const effectiveThreshold = BASE_THRESHOLD * strength;
+      const oh = other.height * other.scale;
+      const otherEdges = [other.y, other.y + oh / 2, other.y + oh];
+
+      yOffsets.forEach(offsetA => {
+        otherEdges.forEach(edgeB => {
+          const currentY = pos.y + offsetA;
+          const diff = Math.abs(currentY - edgeB);
+          if (diff < effectiveThreshold) {
+            if (diff < bestDistY) {
+              bestDistY = diff;
+              bestY = edgeB - offsetA;
+              snappedY = true;
+              guideY = edgeB;
+            }
+          }
+        });
+      });
+    });
+
+    if (snappedY && guideY !== null) {
+      newY = bestY;
+      newLines.push({ vertical: false, y: guideY });
+    }
+
+    setSnapLines(newLines);
+    return { x: newX, y: newY };
+  }, []);
+
+  const handleDragEnd = useCallback((id: string, pos: { x: number; y: number }) => {
+    useStore.getState().updateImage(id, pos);
+    setSnapLines([]);
+  }, []);
 
   const handleSelect = useCallback((id: string, multi: boolean) => {
     const currentSelected = useStore.getState().selectedIds;
     useStore.getState().setSelectedIds(multi ? [...currentSelected, id] : [id]);
   }, []);
 
-  const handleWheel = (e: any) => {
+  const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
     if (e.evt.ctrlKey || e.evt.metaKey) {
       const oldScale = scale;
@@ -311,14 +312,14 @@ export const InfiniteCanvas: React.FC = () => {
         y: pointer.y - mousePointTo.y * newScale,
       });
     } else {
-      setPosition((prev) => ({
+      setPosition(prev => ({
         x: prev.x - e.evt.deltaX,
         y: prev.y - e.evt.deltaY,
       }));
     }
   };
 
-  const handleTouchMove = (e: any) => {
+  const handleTouchMove = (e: Konva.KonvaEventObject<TouchEvent>) => {
     const touches = e.evt.touches;
     if (touches.length === 2) {
       e.evt.preventDefault();
@@ -335,10 +336,7 @@ export const InfiniteCanvas: React.FC = () => {
         x: (lastCenter.current.x - position.x) / scale,
         y: (lastCenter.current.y - position.y) / scale,
       };
-      const newScale = Math.min(
-        Math.max(scale * (dist / lastDist.current), 0.02),
-        10
-      );
+      const newScale = Math.min(Math.max(scale * (dist / lastDist.current), 0.02), 10);
       setScale(newScale);
       setPosition({
         x: center.x - pointTo.x * newScale,
@@ -380,9 +378,7 @@ export const InfiniteCanvas: React.FC = () => {
       dropY = -position.y / scale + window.innerHeight / 2 / scale;
     }
 
-    const files = Array.from(e.dataTransfer.files).filter((f: File) =>
-      f.type.startsWith("image/")
-    );
+    const files = Array.from(e.dataTransfer.files).filter((f: File) => f.type.startsWith('image/'));
 
     // GRID LAYOUT CONFIGURATION
     const COLS = 5;
@@ -400,7 +396,7 @@ export const InfiniteCanvas: React.FC = () => {
       const offsetY = row * ROW_ESTIMATE;
 
       const reader = new FileReader();
-      reader.onload = (ev) => {
+      reader.onload = ev => {
         const src = ev.target?.result as string;
         const imgObj = new window.Image();
         imgObj.src = src;
@@ -415,7 +411,7 @@ export const InfiniteCanvas: React.FC = () => {
             y: dropY + offsetY,
             scale: 1,
             rotation: 0,
-            tags: ["dropped"],
+            tags: ['dropped'],
             analyzed: false,
             timestamp: Date.now(),
           });
@@ -425,13 +421,10 @@ export const InfiniteCanvas: React.FC = () => {
     });
   };
 
-  const handleNodeDblClick = useCallback(
-    (img: ImageAsset, pos: { x: number; y: number }) => {
-      setForgeAnchor(pos);
-      useStore.getState().setForgeImageId(img.id);
-    },
-    []
-  );
+  const handleNodeDblClick = useCallback((img: ImageAsset, pos: { x: number; y: number }) => {
+    setForgeAnchor(pos);
+    useStore.getState().setForgeImageId(img.id);
+  }, []);
 
   return (
     <div
@@ -463,7 +456,7 @@ export const InfiniteCanvas: React.FC = () => {
             isInteracting={isInteracting}
           />
           <SynapticLayer images={images} hoveredId={hoveredNodeId} />
-          {images.map((img) => (
+          {visibleImages.map(img => (
             <Group
               key={img.id}
               onMouseEnter={() => setHoveredNodeId(img.id)}
@@ -485,8 +478,8 @@ export const InfiniteCanvas: React.FC = () => {
               key={i}
               points={
                 line.vertical
-                  ? [line.x!, -100000, line.x!, 100000]
-                  : [-100000, line.y!, 100000, line.y!]
+                  ? [line.x ?? 0, -100000, line.x ?? 0, 100000]
+                  : [-100000, line.y ?? 0, 100000, line.y ?? 0]
               }
               stroke="#22d3ee"
               strokeWidth={1 / scale}
@@ -521,13 +514,17 @@ export const InfiniteCanvas: React.FC = () => {
       </AnimatePresence>
 
       <AnimatePresence>
-        {forgeImageId && (
-          <FloatingNanoForge
-            image={images.find((i) => i.id === forgeImageId)!}
-            anchorPosition={forgeAnchor}
-            onClose={() => useStore.getState().setForgeImageId(null)}
-          />
-        )}
+        {forgeImageId &&
+          (() => {
+            const forgeImage = images.find(i => i.id === forgeImageId);
+            return forgeImage ? (
+              <FloatingNanoForge
+                image={forgeImage}
+                anchorPosition={forgeAnchor}
+                onClose={() => useStore.getState().setForgeImageId(null)}
+              />
+            ) : null;
+          })()}
       </AnimatePresence>
     </div>
   );

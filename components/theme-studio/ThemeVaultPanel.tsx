@@ -1,15 +1,18 @@
+// Dynamic theme color swatches require inline styles - cannot be statically defined
 import React from 'react';
 import { Library, Trash2 } from 'lucide-react';
 import { ThemeConfig } from '../../types';
 
 interface ThemeVaultPanelProps {
   savedThemes: ThemeConfig[];
+  activeThemeId?: string;
   onLoadTheme: (theme: ThemeConfig) => void;
   onDeleteTheme: (id: string) => void;
 }
 
 export const ThemeVaultPanel: React.FC<ThemeVaultPanelProps> = ({
   savedThemes,
+  activeThemeId,
   onLoadTheme,
   onDeleteTheme,
 }) => {
@@ -29,39 +32,58 @@ export const ThemeVaultPanel: React.FC<ThemeVaultPanelProps> = ({
             <span className="text-[9px] text-slate-600 font-mono uppercase">Vault Empty</span>
           </div>
         ) : (
-          savedThemes.map(theme => (
-            <div
-              key={theme.id}
-              className="group relative p-3 rounded-xl bg-white/5 border border-white/5 hover:border-emerald-500/30 transition-all cursor-pointer"
-              onClick={() => onLoadTheme(theme)}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-white uppercase tracking-wider">
-                  {theme.name}
-                </span>
-                <button
-                  onClick={e => {
-                    e.stopPropagation();
-                    onDeleteTheme(theme.id);
-                  }}
-                  aria-label="Delete theme"
-                  className="text-slate-600 hover:text-rose-500 transition-colors p-1"
-                >
-                  <Trash2 size={12} />
-                </button>
+          savedThemes.map(theme => {
+            const isActive = activeThemeId === theme.id;
+            // eslint-disable-next-line react/forbid-dom-props
+            return (
+              <div
+                key={theme.id}
+                className={`group relative p-3 rounded-xl transition-all cursor-pointer border ${
+                  isActive
+                    ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
+                    : 'bg-white/5 border-white/5 hover:border-emerald-500/30'
+                }`}
+                onClick={() => onLoadTheme(theme)}
+                style={
+                  {
+                    '--theme-bezel': theme.bezelColor,
+                    '--theme-accent': theme.accentColor,
+                  } as React.CSSProperties
+                }
+              >
+                <div className="flex items-center justify-between">
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-wider ${
+                      isActive ? 'text-emerald-400' : 'text-white'
+                    }`}
+                  >
+                    {theme.name}
+                  </span>
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      onDeleteTheme(theme.id);
+                    }}
+                    aria-label="Delete theme"
+                    className="text-slate-600 hover:text-rose-500 transition-colors p-1"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+                {/* Color swatches using CSS variables defined on parent */}
+                <div className="mt-2 flex gap-1">
+                  <div
+                    className="w-3 h-3 rounded-full border border-white/20 bg-[var(--theme-bezel)]"
+                    aria-label={`Bezel color: ${theme.bezelColor}`}
+                  />
+                  <div
+                    className="w-3 h-3 rounded-full border border-white/20 bg-[var(--theme-accent)]"
+                    aria-label={`Accent color: ${theme.accentColor}`}
+                  />
+                </div>
               </div>
-              <div className="mt-2 flex gap-1">
-                <div
-                  className="w-3 h-3 rounded-full border border-white/20"
-                  style={{ backgroundColor: theme.bezelColor }}
-                />
-                <div
-                  className="w-3 h-3 rounded-full border border-white/20"
-                  style={{ backgroundColor: theme.accentColor }}
-                />
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

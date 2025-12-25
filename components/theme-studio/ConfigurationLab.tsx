@@ -17,15 +17,19 @@ import {
 } from 'lucide-react';
 import { ThemeConfig } from '../../types';
 import { BEZEL_TEXTURES } from './constants';
+import { Select } from '../ui/Select';
 
 interface ConfigurationLabProps {
   activeConfig: ThemeConfig;
   showCaptions: boolean;
   neuralTemperature: number;
   reelLength: number;
+  currentCaption?: string;
   onUpdateConfig: (updates: Partial<ThemeConfig>) => void;
   onToggleCaptions: () => void;
   onGenerateCaptions: () => void;
+  onUpdateCaption?: (text: string) => void;
+  onRegenerateCaption?: () => void;
   onSaveTheme: (name: string) => void;
 }
 
@@ -34,9 +38,12 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
   showCaptions,
   neuralTemperature,
   reelLength,
+  currentCaption,
   onUpdateConfig,
   onToggleCaptions,
   onGenerateCaptions,
+  onUpdateCaption,
+  onRegenerateCaption,
   onSaveTheme,
 }) => {
   const [isSaving, setIsSaving] = useState(false);
@@ -76,6 +83,7 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
                 disabled={!saveName.trim()}
                 aria-label="Confirm save"
                 className="p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md transition-colors"
+                title="Save Theme"
               >
                 <Check size={12} />
               </button>
@@ -123,18 +131,11 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
                   />
                   <span className="text-[9px] font-mono text-slate-500">Base Tint</span>
                 </div>
-                <select
+                <Select
                   value={activeConfig.bezelTexture || 'none'}
-                  onChange={e => onUpdateConfig({ bezelTexture: e.target.value })}
-                  aria-label="Select bezel texture"
-                  className="bg-white/5 border border-white/5 rounded-xl p-2 text-[9px] text-white font-mono outline-none focus:border-indigo-500"
-                >
-                  {BEZEL_TEXTURES.map(tex => (
-                    <option key={tex.id} value={tex.id}>
-                      {tex.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val: string) => onUpdateConfig({ bezelTexture: val })}
+                  options={BEZEL_TEXTURES.map(tex => ({ value: tex.id, label: tex.name }))}
+                />
               </div>
             </div>
 
@@ -143,21 +144,20 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <CloudRain size={10} /> Atmosphere
               </label>
-              <select
+              <Select
                 value={activeConfig.overlayType || 'none'}
-                onChange={e =>
-                  onUpdateConfig({ overlayType: e.target.value as ThemeConfig['overlayType'] })
+                onChange={(val: string) =>
+                  onUpdateConfig({ overlayType: val as ThemeConfig['overlayType'] })
                 }
-                aria-label="Select overlay type"
-                className="w-full bg-black border border-white/10 rounded-xl p-3 text-[10px] text-white font-black uppercase outline-none focus:border-indigo-500 transition-all"
-              >
-                <option value="none">Clear</option>
-                <option value="snow">Blizzard</option>
-                <option value="rain">Rainfall</option>
-                <option value="dust">Floating Dust</option>
-                <option value="glitter">Glitter Shimmer</option>
-                <option value="embers">Fire Embers</option>
-              </select>
+                options={[
+                  { value: 'none', label: 'Clear' },
+                  { value: 'snow', label: 'Blizzard' },
+                  { value: 'rain', label: 'Rainfall' },
+                  { value: 'dust', label: 'Floating Dust' },
+                  { value: 'glitter', label: 'Glitter Shimmer' },
+                  { value: 'embers', label: 'Fire Embers' },
+                ]}
+              />
             </div>
 
             {/* Particle Density */}
@@ -193,22 +193,21 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <Speaker size={10} /> Audio Ambience
               </label>
-              <select
+              <Select
                 value={activeConfig.audioAmbience || 'none'}
-                onChange={e =>
+                onChange={(val: string) =>
                   onUpdateConfig({
-                    audioAmbience: e.target.value as ThemeConfig['audioAmbience'],
+                    audioAmbience: val as ThemeConfig['audioAmbience'],
                   })
                 }
-                aria-label="Select audio ambience"
-                className="w-full bg-black border border-white/10 rounded-xl p-3 text-[10px] text-white font-black uppercase outline-none focus:border-indigo-500 transition-all"
-              >
-                <option value="none">Muted</option>
-                <option value="holiday">Holiday Cheer</option>
-                <option value="lofi">Lofi Chill</option>
-                <option value="storm">Thunderstorm</option>
-                <option value="cinematic">Deep Drone</option>
-              </select>
+                options={[
+                  { value: 'none', label: 'Muted' },
+                  { value: 'holiday', label: 'Holiday Cheer' },
+                  { value: 'lofi', label: 'Lofi Chill' },
+                  { value: 'storm', label: 'Thunderstorm' },
+                  { value: 'cinematic', label: 'Deep Drone' },
+                ]}
+              />
             </div>
 
             {/* Typography */}
@@ -216,16 +215,15 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <Type size={10} /> Typography
               </label>
-              <select
+              <Select
                 value={activeConfig.fontFamily || 'Inter'}
-                onChange={e => onUpdateConfig({ fontFamily: e.target.value })}
-                aria-label="Select typography"
-                className="w-full bg-black border border-white/10 rounded-xl p-3 text-[10px] text-white font-black uppercase outline-none focus:border-indigo-500 transition-all"
-              >
-                <option value="Inter">Modern Sans</option>
-                <option value="serif">Editorial Serif</option>
-                <option value="monospace">Tech Mono</option>
-              </select>
+                onChange={(val: string) => onUpdateConfig({ fontFamily: val })}
+                options={[
+                  { value: 'Inter', label: 'Modern Sans' },
+                  { value: 'serif', label: 'Editorial Serif' },
+                  { value: 'monospace', label: 'Tech Mono' },
+                ]}
+              />
             </div>
 
             {/* Accent Glow */}
@@ -263,6 +261,37 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
                 </div>
               </div>
 
+              {/* Caption Editor */}
+              {showCaptions && onUpdateCaption && (
+                <div className="bg-white/5 border border-white/5 rounded-xl p-3 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[8px] text-slate-500 uppercase tracking-wider">
+                      Current Frame Caption
+                    </span>
+                    {onRegenerateCaption && (
+                      <button
+                        onClick={onRegenerateCaption}
+                        disabled={neuralTemperature > 0}
+                        className="text-[8px] text-indigo-400 hover:text-white flex items-center gap-1 transition-colors disabled:opacity-50"
+                      >
+                        <Wand2 size={8} /> Regenerate
+                      </button>
+                    )}
+                  </div>
+                  <textarea
+                    value={currentCaption || ''}
+                    onChange={e => onUpdateCaption(e.target.value)}
+                    placeholder={
+                      currentCaption === undefined
+                        ? 'Select an image to add a caption...'
+                        : 'Enter caption text...'
+                    }
+                    className="w-full h-20 bg-black/50 border border-white/10 rounded-lg p-2 text-[10px] text-white font-mono outline-none focus:border-indigo-500/50 resize-none"
+                    disabled={currentCaption === undefined}
+                  />
+                </div>
+              )}
+
               <button
                 onClick={onGenerateCaptions}
                 disabled={neuralTemperature > 0 || reelLength === 0}
@@ -273,7 +302,7 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
                 ) : (
                   <Wand2 size={12} />
                 )}
-                Generate AI Captions
+                Generate All Captions (Batch)
               </button>
             </div>
           </div>

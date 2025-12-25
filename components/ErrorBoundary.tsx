@@ -1,8 +1,10 @@
-import React, { Component, ErrorInfo, ReactNode } from "react";
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { logger } from '../services/logger';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
+  componentName?: string;
 }
 
 interface ErrorBoundaryState {
@@ -13,11 +15,11 @@ interface ErrorBoundaryState {
 /**
  * Error Boundary component to catch JavaScript errors anywhere in the child
  * component tree and display a fallback UI instead of crashing the whole app.
+ * Integrates with centralized logger for telemetry.
  */
-export class ErrorBoundary extends Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  static displayName = 'ErrorBoundary';
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -28,7 +30,12 @@ export class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
+    const componentName = this.props.componentName || 'Unknown';
+    logger.error('ErrorBoundary', `Caught error in ${componentName}`, {
+      error,
+      componentStack: errorInfo.componentStack,
+      component: componentName,
+    });
   }
 
   handleRetry = (): void => {
@@ -65,8 +72,7 @@ export class ErrorBoundary extends Component<
                 System Error
               </h1>
               <p className="text-sm text-slate-400 font-mono">
-                Something went wrong. The application encountered an unexpected
-                error.
+                Something went wrong. The application encountered an unexpected error.
               </p>
             </div>
 

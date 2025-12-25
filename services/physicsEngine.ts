@@ -1,4 +1,3 @@
-
 import { ImageAsset } from '../types';
 import { useStore } from '../store/useStore';
 
@@ -32,6 +31,8 @@ const calculateVisualWeight = (img) => {
 
 const resolveSpatialCollisions = (images) => {
     const nextImages = images.map(img => ({ ...img }));
+    const CELL_SIZE = 350; // Slightly larger than max node radius + padding
+    
     const nodes = nextImages.map(img => ({
         ref: img,
         x: safeNum(img.x),
@@ -41,6 +42,29 @@ const resolveSpatialCollisions = (images) => {
         pinned: !!img.pinned,
         isStack: !!img.isStackChild
     }));
+    
+    // Build Spatial Hash Grid
+    const grid = new Map();
+    const getKey = (x, y) => Math.floor(x / CELL_SIZE) + ',' + Math.floor(y / CELL_SIZE);
+    
+    nodes.forEach((node, idx) => {
+        const key = getKey(node.x, node.y);
+        if (!grid.has(key)) grid.set(key, []);
+        grid.get(key).push(idx);
+    });
+    
+    const getNeighborKeys = (x, y) => {
+        const cx = Math.floor(x / CELL_SIZE);
+        const cy = Math.floor(y / CELL_SIZE);
+        const keys = [];
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                keys.push((cx + dx) + ',' + (cy + dy));
+            }
+        }
+        return keys;
+    };
+    
     const centerX = 0;
     const centerY = 0;
 
@@ -48,6 +72,7 @@ const resolveSpatialCollisions = (images) => {
         const a = nodes[i];
         if (a.pinned || a.isStack) continue;
         
+        // A. Center Gravity
         const distToCenter = Math.sqrt((a.x - centerX) ** 2 + (a.y - centerY) ** 2);
         if (distToCenter > 50) {
             const gx = (centerX - a.x) * VISUAL_WEIGHT_GRAVITY * a.weight;
@@ -56,26 +81,36 @@ const resolveSpatialCollisions = (images) => {
             a.y += gy;
         }
 
-        for (let j = 0; j < nodes.length; j++) {
-            if (i === j) continue;
-            const b = nodes[j];
-            if (b.isStack) continue;
-            const dx = a.x - b.x;
-            const dy = a.y - b.y;
-            const distSq = dx * dx + dy * dy;
-            const minDist = a.radius + b.radius;
-            const minDistSq = minDist * minDist;
-            if (distSq < minDistSq && distSq > 0.1) {
-                const distance = Math.sqrt(distSq);
-                const force = (minDist - distance) * REPULSION_K;
-                const fx = (dx / distance) * force;
-                const fy = (dy / distance) * force;
-                const totalWeight = a.weight + b.weight;
-                const influence = b.weight / totalWeight;
-                a.x += fx * influence;
-                a.y += fy * influence;
+        // B. Collision Repulsion (Spatial Hash Lookup)
+        const neighborKeys = getNeighborKeys(a.x, a.y);
+        for (const key of neighborKeys) {
+            const bucket = grid.get(key);
+            if (!bucket) continue;
+            
+            for (const j of bucket) {
+                if (i === j) continue;
+                const b = nodes[j];
+                if (b.isStack) continue;
+                
+                const dx = a.x - b.x;
+                const dy = a.y - b.y;
+                const distSq = dx * dx + dy * dy;
+                const minDist = a.radius + b.radius;
+                const minDistSq = minDist * minDist;
+                
+                if (distSq < minDistSq && distSq > 0.1) {
+                    const distance = Math.sqrt(distSq);
+                    const force = (minDist - distance) * REPULSION_K;
+                    const fx = (dx / distance) * force;
+                    const fy = (dy / distance) * force;
+                    const totalWeight = a.weight + b.weight;
+                    const influence = b.weight / totalWeight;
+                    a.x += fx * influence;
+                    a.y += fy * influence;
+                }
             }
         }
+        
         a.ref.x = safeNum(a.x);
         a.ref.y = safeNum(a.y);
     }
@@ -96,83 +131,85 @@ self.onmessage = (e) => {
 
 let workerPromise: Promise<Worker | null> | null = null;
 let reqId = 0;
-const pendingRequests = new Map<number, { resolve: (images: ImageAsset[]) => void, reject: (err: any) => void }>();
+const pendingRequests = new Map<
+  number,
+  { resolve: (images: ImageAsset[]) => void; reject: (err: Error) => void }
+>();
 
 const getPhysicsWorker = async (): Promise<Worker | null> => {
-    if (!workerPromise) {
-        workerPromise = (async () => {
-            try {
-                // Create worker from Blob to avoid CORS/Path issues
-                const blob = new Blob([WORKER_CODE], { type: 'application/javascript' });
-                const workerUrl = URL.createObjectURL(blob);
-                const worker = new Worker(workerUrl);
+  if (!workerPromise) {
+    workerPromise = (async () => {
+      try {
+        // Create worker from Blob to avoid CORS/Path issues
+        const blob = new Blob([WORKER_CODE], { type: 'application/javascript' });
+        const workerUrl = URL.createObjectURL(blob);
+        const worker = new Worker(workerUrl);
 
-                worker.onmessage = (e: MessageEvent) => {
-                    const { id, success, images, error } = e.data;
-                    if (pendingRequests.has(id)) {
-                        const { resolve, reject } = pendingRequests.get(id)!;
-                        if (success) {
-                            resolve(images);
-                        } else {
-                            let errMsg = 'Physics Calc Failed';
-                            if (error) errMsg = typeof error === 'string' ? error : error.message ?? JSON.stringify(error);
-                            
-                            // Log quietly to avoid spamming the HUD
-                            console.warn('Physics Worker Reported Error', error);
-                            resolve(images); // Fail graceful
-                        }
-                        pendingRequests.delete(id);
-                    }
-                };
-
-                worker.onerror = (e: ErrorEvent | Event) => {
-                    console.error('Physics Worker CRITICAL Error', e);
-                    let msg = 'Physics Worker Crashed';
-                    const evt = e as any;
-                    if (evt instanceof ErrorEvent) msg = evt.message;
-                    else if ('message' in evt) msg = evt.message;
-                    
-                    useStore.getState().addCouncilLog(msg, 'error');
-                    
-                    // CRITICAL: Reject all pending requests to prevent Deadlock
-                    for (const [id, { reject }] of pendingRequests.entries()) {
-                        reject(new Error("Worker terminated unexpectedly"));
-                    }
-                    pendingRequests.clear();
-                    workerPromise = null;
-                };
-
-                return worker;
-            } catch (e: any) {
-                console.error("Failed to init Physics Worker:", e);
-                useStore.getState().addCouncilLog(`Physics Init Failed: ${e?.message}`, 'error');
-                return null;
+        worker.onmessage = (e: MessageEvent) => {
+          const { id, success, images, error } = e.data;
+          const pending = pendingRequests.get(id);
+          if (pending) {
+            const { resolve } = pending;
+            if (success) {
+              resolve(images);
+            } else {
+              // Log quietly to avoid spamming the HUD
+              console.warn('Physics Worker Reported Error', error);
+              resolve(images); // Fail graceful
             }
-        })();
-    }
-    return workerPromise;
+            pendingRequests.delete(id);
+          }
+        };
+
+        worker.onerror = (e: ErrorEvent | Event) => {
+          console.error('Physics Worker CRITICAL Error', e);
+          let msg = 'Physics Worker Crashed';
+          const evt = e as { message?: string };
+          if (e instanceof ErrorEvent) msg = e.message;
+          else if ('message' in evt && evt.message) msg = evt.message;
+
+          useStore.getState().addCouncilLog(msg, 'error');
+
+          // CRITICAL: Reject all pending requests to prevent Deadlock
+          for (const [, { reject }] of pendingRequests.entries()) {
+            reject(new Error('Worker terminated unexpectedly'));
+          }
+          pendingRequests.clear();
+          workerPromise = null;
+        };
+
+        return worker;
+      } catch (e: unknown) {
+        const errMessage = e instanceof Error ? e.message : String(e);
+        console.error('Failed to init Physics Worker:', e);
+        useStore.getState().addCouncilLog(`Physics Init Failed: ${errMessage}`, 'error');
+        return null;
+      }
+    })();
+  }
+  return workerPromise;
 };
 
 export const resolveSpatialCollisions = async (images: ImageAsset[]): Promise<ImageAsset[]> => {
-    const w = await getPhysicsWorker();
-    if (!w) return images; 
+  const w = await getPhysicsWorker();
+  if (!w) return images;
 
-    const currentId = ++reqId;
-    
-    return new Promise<ImageAsset[]>((resolve, reject) => {
-        pendingRequests.set(currentId, { resolve, reject });
-        
-        // Strip non-serializable data before sending
-        const serializableImages = images.map(({ file, ...rest }) => rest);
-        
-        w.postMessage({ id: currentId, images: serializableImages });
-    }).catch(err => {
-        console.warn("Physics fallback triggered:", err);
-        return images;
-    });
+  const currentId = ++reqId;
+
+  return new Promise<ImageAsset[]>((resolve, reject) => {
+    pendingRequests.set(currentId, { resolve, reject });
+
+    // Strip non-serializable data before sending
+    const serializableImages = images.map(({ file: _file, ...rest }) => rest);
+
+    w.postMessage({ id: currentId, images: serializableImages });
+  }).catch(err => {
+    console.warn('Physics fallback triggered:', err);
+    return images;
+  });
 };
 
 export const calculateVisualWeightLegacy = (img: ImageAsset): number => {
-    const sizeFactor = (img.width * img.height) / (640 * 480);
-    return sizeFactor * 1.0; 
+  const sizeFactor = (img.width * img.height) / (640 * 480);
+  return sizeFactor * 1.0;
 };

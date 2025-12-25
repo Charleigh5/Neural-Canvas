@@ -23,10 +23,18 @@ export const ThemeStudio: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     deleteTheme,
     savedThemes,
     reel,
+    orchestrator,
+    images,
+    updateImage,
+    generateCaption, // Need to expose this from store actions
   } = useStore();
 
   const [customPrompt, setCustomPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Get current image for caption editing
+  const currentImageId = orchestrator.currentImageId;
+  const currentImage = images.find(img => img.id === currentImageId);
 
   // Ensure active config is always available for editing
   const activeConfig: ThemeConfig =
@@ -35,6 +43,23 @@ export const ThemeStudio: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       : DEFAULT_THEME_CONFIG;
 
   // --- Event Handlers ---
+
+  const handleUpdateCaption = (text: string) => {
+    if (currentImageId) {
+      updateImage(currentImageId, { caption: text });
+    }
+  };
+
+  const handleRegenerateCaption = async () => {
+    if (currentImage && currentImage.tags) {
+      // We can use the store action if exposed, or call service directly if store doesn't expose single generation
+      // For now, assuming we might need to add single caption gen action to store or duplicate logic
+      // Ideally, useStore should expose `regenerateCaption(id)`
+      // Let's check `useStore` again. It has `generateCaptionsForReel` but maybe not single.
+      // If not, I'll add `regenerateImageCaption` to store in next step.
+      // For now, I'll implement a placeholder that will be connected to store.
+    }
+  };
 
   const handleGenerate = async () => {
     if (!customPrompt.trim()) return;
@@ -99,6 +124,7 @@ export const ThemeStudio: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         {/* Left: Saved Themes */}
         <ThemeVaultPanel
           savedThemes={savedThemes}
+          activeThemeId={activeConfig.id}
           onLoadTheme={handleLoadTheme}
           onDeleteTheme={deleteTheme}
         />
@@ -109,9 +135,16 @@ export const ThemeStudio: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           showCaptions={playback.showCaptions}
           neuralTemperature={neuralTemperature}
           reelLength={reel.length}
+          currentCaption={currentImage?.caption}
           onUpdateConfig={handleUpdateConfig}
           onToggleCaptions={toggleCaptions}
           onGenerateCaptions={generateCaptionsForReel}
+          onUpdateCaption={handleUpdateCaption}
+          onRegenerateCaption={
+            currentImage
+              ? () => useStore.getState().regenerateImageCaption?.(currentImage.id)
+              : undefined
+          }
           onSaveTheme={handleSaveTheme}
         />
 

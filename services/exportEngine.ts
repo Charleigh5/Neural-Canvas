@@ -27,7 +27,7 @@ export class ExportEngine {
   async startCapture(
     options: ExportOptions,
     onComplete: (blob: Blob) => void,
-    onProgress?: (progress: number) => void
+    _onProgress?: (progress: number) => void
   ) {
     this.chunks = [];
     this.isRecording = true;

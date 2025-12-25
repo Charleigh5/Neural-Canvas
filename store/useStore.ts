@@ -128,6 +128,7 @@ interface StoreState {
   deleteReel: (id: string) => void;
   orchestrateReel: () => Promise<void>;
   generateCaptionsForReel: () => Promise<void>;
+  regenerateImageCaption: (id: string) => Promise<void>;
   setForgeImageId: (id: string | null) => void;
 
   // Audio Actions
@@ -141,6 +142,9 @@ interface StoreState {
   batchSmartCrop: (ids: string[]) => void;
   batchAnalyze: (ids: string[]) => Promise<void>;
   batchEdit: (ids: string[], prompt: string) => Promise<void>;
+
+  // Persistence Actions
+  hydrateFromDB: () => Promise<void>;
 }
 
 const initialPlayback: PlaybackConfig = {
@@ -596,6 +600,25 @@ export const useStore = create<StoreState>((set, get) => {
       }
     },
 
+    regenerateImageCaption: async id => {
+      const img = get().images.find(i => i.id === id);
+      if (!img || !img.tags.length) return;
+
+      set(state => ({ neuralTemperature: state.neuralTemperature + 10 }));
+      try {
+        const caption = await generateCaption(img.tags);
+        if (caption) {
+          get().updateImage(id, { caption });
+        }
+      } catch (error) {
+        get().addCouncilLog(`Caption gen failed: ${error}`, 'error');
+      } finally {
+        set(state => ({
+          neuralTemperature: Math.max(0, state.neuralTemperature - 10),
+        }));
+      }
+    },
+
     performBackgroundGeneration: async parentId => {
       set(state => ({ neuralTemperature: state.neuralTemperature + 40 }));
       const res = await generateImage('Cinematic abstract backdrop.');
@@ -850,31 +873,39 @@ export const useStore = create<StoreState>((set, get) => {
           bezelTheme: 'custom',
         },
       })),
-    saveTheme: config => set(state => ({ savedThemes: [...state.savedThemes, config] })),
-    deleteTheme: id =>
+    saveTheme: config => {
+      set(state => ({ savedThemes: [...state.savedThemes, config] }));
+      assetDB.saveTheme(config).catch(console.error);
+    },
+    deleteTheme: id => {
       set(state => ({
         savedThemes: state.savedThemes.filter(t => t.id !== id),
-      })),
-    saveReel: (name: string, overwriteId) =>
-      set(state => {
-        const newReel = {
-          id: overwriteId || Math.random().toString(36).substring(2, 11),
-          name,
-          itemIds: [...state.reel],
-          createdAt: Date.now(),
-        };
-        return {
-          savedReels: [...state.savedReels.filter(r => r.id !== newReel.id), newReel],
-        };
-      }),
+      }));
+      assetDB.deleteTheme(id).catch(console.error);
+    },
+    saveReel: (name: string, overwriteId) => {
+      const state = get();
+      const newReel = {
+        id: overwriteId || Math.random().toString(36).substring(2, 11),
+        name,
+        itemIds: [...state.reel],
+        createdAt: Date.now(),
+      };
+      set(s => ({
+        savedReels: [...s.savedReels.filter(r => r.id !== newReel.id), newReel],
+      }));
+      assetDB.saveReel(newReel).catch(console.error);
+    },
     loadReel: id => {
       const r = get().savedReels.find(x => x.id === id);
       if (r) set({ reel: r.itemIds });
     },
-    deleteReel: id =>
+    deleteReel: id => {
       set(state => ({
         savedReels: state.savedReels.filter(r => r.id !== id),
-      })),
+      }));
+      assetDB.deleteReel(id).catch(console.error);
+    },
 
     orchestrateReel: async () => {
       const reelAssets = get().images.filter(i => get().reel.includes(i.id));
@@ -934,5 +965,22 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     setForgeImageId: id => set({ forgeImageId: id }),
+
+    // Persistence Actions
+    hydrateFromDB: async () => {
+      try {
+        const [savedReels, savedThemes] = await Promise.all([
+          assetDB.getAllReels(),
+          assetDB.getAllThemes(),
+        ]);
+        set({ savedReels, savedThemes });
+        get().addCouncilLog(
+          `Hydrated ${savedReels.length} reels, ${savedThemes.length} themes from vault`,
+          'info'
+        );
+      } catch (error) {
+        console.error('Failed to hydrate from DB:', error);
+      }
+    },
   };
 });

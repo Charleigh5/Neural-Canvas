@@ -1,22 +1,32 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Download, X, Film, AlertTriangle, CheckCircle2, Loader2, Monitor } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { exportEngine } from '../services/exportEngine';
 
+// Define the shape of store state we need
+interface ExportModalStore {
+  playback: { isPlaying: boolean };
+  exportState: { status: string; progress: number; isExporting: boolean; error?: string } | null;
+  startExport: () => void;
+  finishExport: () => void;
+  cancelExport: () => void;
+  setError: (error: string) => void;
+  togglePlayback: () => void;
+  playReel: () => void;
+}
+
 export const ExportModal = ({ onClose }: { onClose: () => void }) => {
   const {
     playback,
-    exportState, // Access from store
+    exportState,
     startExport,
     finishExport,
     cancelExport,
-    setExportProgress,
-    setExportConfig,
     setError,
     togglePlayback,
     playReel,
-  } = useStore() as any; // Cast to any until store definitions are fully aligned
+  } = useStore() as unknown as ExportModalStore;
 
   // Local state for blob URL to download
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
@@ -53,8 +63,9 @@ export const ExportModal = ({ onClose }: { onClose: () => void }) => {
           if (playback.isPlaying) togglePlayback(); // Stop playback
         }
       );
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Unknown export error';
+      setError(errorMessage);
     }
   };
 
@@ -80,7 +91,6 @@ export const ExportModal = ({ onClose }: { onClose: () => void }) => {
 
   // Compute stats
   const status = exportState?.status || 'idle';
-  const progress = exportState?.progress || 0;
   const isExporting = exportState?.isExporting || false;
 
   return (
