@@ -12,82 +12,100 @@ This document tracks the evolution of the system. Every feature added creates a 
 The following 10 refinements have been identified to transform the system into a high-volume media synthesis engine.
 
 ### 1. Quantum Bridge (Google Photos Integration)
-*   **Goal:** Direct pipeline to Google Photos API.
-*   **Function:** OAuth flow to browse Albums and batch-ingest photos directly into the canvas.
+
+- **Goal:** Direct pipeline to Google Photos API.
+- **Function:** OAuth flow to browse Albums and batch-ingest photos directly into the canvas.
 
 ### 2. The Nano-Forge (Generative Studio)
-*   **Goal:** In-canvas generative editing using `gemini-2.5-flash-image`.
-*   **Function:** Contextual HUD to perform text-based edits (inpainting, style transfer) on selected nodes.
+
+- **Goal:** In-canvas generative editing using `gemini-2.5-flash-image`.
+- **Function:** Contextual HUD to perform text-based edits (inpainting, style transfer) on selected nodes.
 
 ### 3. Asset Genealogy (Version Control)
-*   **Goal:** Non-destructive editing.
-*   **Function:** Edited images become "Child Nodes" linked to the "Original". Visualizes the creative tree.
+
+- **Goal:** Non-destructive editing.
+- **Function:** Edited images become "Child Nodes" linked to the "Original". Visualizes the creative tree.
 
 ### 4. Neural Clustering (Mass Ingestion)
-*   **Goal:** Organize large datasets.
-*   **Function:** Upon importing 100+ photos, auto-stack them by Time, Location, or Visual Similarity (Embedding distance).
+
+- **Goal:** Organize large datasets.
+- **Function:** Upon importing 100+ photos, auto-stack them by Time, Location, or Visual Similarity (Embedding distance).
 
 ### 5. Ambient Synthesis
-*   **Goal:** Custom backgrounds for the Highlight Reel.
-*   **Function:** AI generates abstract 16:9 backgrounds that match the color palette/mood of the foreground photos.
+
+- **Goal:** Custom backgrounds for the Highlight Reel.
+- **Function:** AI generates abstract 16:9 backgrounds that match the color palette/mood of the foreground photos.
 
 ### 6. Holographic Prop Generator
-*   **Goal:** Custom props.
-*   **Function:** Generate transparent PNG stickers (e.g., "Party Hat", "Neon Sign") to drag-and-drop onto photos.
+
+- **Goal:** Custom props.
+- **Function:** Generate transparent PNG stickers (e.g., "Party Hat", "Neon Sign") to drag-and-drop onto photos.
 
 ### 7. Linear Sequencer
-*   **Goal:** Fine-tuned control.
-*   **Function:** A bottom-dock timeline view to manually arrange the "Perfect Highlight Reel" sequence.
+
+- **Goal:** Fine-tuned control.
+- **Function:** A bottom-dock timeline view to manually arrange the "Perfect Highlight Reel" sequence.
 
 ### 8. Narrative Persistence (Playlists)
-*   **Goal:** Save the flow.
-*   **Function:** Save the Orchestrator's history queue as a named "Reel" (e.g., "Summer Trip 2024").
+
+- **Goal:** Save the flow.
+- **Function:** Save the Orchestrator's history queue as a named "Reel" (e.g., "Summer Trip 2024").
 
 ### 9. Smart-Crop V2
-*   **Goal:** Perfect framing.
-*   **Function:** Use the `subjectBox` from vision analysis to auto-crop photos to 16:9 for the Quad Monitor view without cutting off heads.
+
+- **Goal:** Perfect framing.
+- **Function:** Use the `subjectBox` from vision analysis to auto-crop photos to 16:9 for the Quad Monitor view without cutting off heads.
 
 ### 10. Render Export
-*   **Goal:** Shareability.
-*   **Function:** Record the canvas playback or Sequencer output to a downloadable `.mp4` file.
+
+- **Goal:** Shareability.
+- **Function:** Record the canvas playback or Sequencer output to a downloadable `.mp4` file.
 
 ---
 
 ## 📋 Execution Log
 
 ### Phase 1: Core Intelligence (Completed)
+
 - [x] **TASK-001: Semantic Synapses** (Visual connections based on tags).
 - [x] **TASK-002: Focus Mode** (Search filtering).
 - [x] **TASK-003: AI Orchestration V2** (Synaptic Weighting).
 
 ### Phase 2: The Nano-Forge & Genealogy (Completed & Polished)
+
 - [x] **TASK-004: Asset Genealogy Data Model**
-    - *Impl:* Added `parentId`, `variants` to `ImageAsset`.
-    - *Visuals:* Polished with Bezier Curves & Arrows.
-    - *Status:* **COMPLETED**.
+  - _Impl:_ Added `parentId`, `variants` to `ImageAsset`.
+  - _Visuals:_ Polished with Bezier Curves & Arrows.
+  - _Status:_ **COMPLETED**.
 - [x] **TASK-005: The Nano-Forge HUD**
-    - *Impl:* Created `ContextualHUD` component.
-    - *Function:* Allows text prompting to trigger `gemini-2.5-flash-image`.
-    - *Status:* **COMPLETED**.
+  - _Impl:_ Created `ContextualHUD` component.
+  - _Function:_ Allows text prompting to trigger `gemini-2.5-flash-image`.
+  - _Status:_ **COMPLETED**.
 - [x] **TASK-009: Smart-Crop V2**
-    - *Impl:* Added `utils/smartCrop.ts` and updated Quad View.
-    - *Function:* Uses AI Subject Box to center crops.
-    - *Status:* **COMPLETED**.
+  - _Impl:_ Added `utils/smartCrop.ts` and updated Quad View.
+  - _Function:_ Uses AI Subject Box to center crops.
+  - _Status:_ **COMPLETED**.
 
-### Phase 3: The Pipeline (In Progress)
+### Phase 3: The Pipeline (Completed)
+
 - [x] **TASK-006: Quantum Bridge (Google Photos Integration)**
-    - *Impl:* Added `services/googlePhotosService`, `GooglePhotosBrowser`.
-    - *Function:* OAuth Implicit Flow + Album Ingestion.
-    - *Status:* **COMPLETED**.
-- [ ] **TASK-007: Narrative Persistence (Saving Reels)**.
+  - _Impl:_ Added `services/googlePhotosService`, `GooglePhotosBrowser`.
+  - _Function:_ OAuth Implicit Flow + Album Ingestion.
+  - _Status:_ **COMPLETED**.
+- [x] **TASK-007: Narrative Persistence (Saving Reels)**.
+  - _Goal:_ Save the Orchestrator's history queue as a named "Reel" (e.g., "Summer Trip 2024").
+  - _Impl:_ Full IndexedDB persistence via `services/db.ts`, `SaveReelModal.tsx`, `ReelLibrary.tsx`.
+  - _Function:_ Save, load, delete, and auto-hydrate reels on app startup.
+  - _Status:_ **COMPLETED**.
 
-### Phase 4: Quantum Optimization (Planned)
-- [ ] **OPT-001: Physics Web Worker**: Offload `resolveSpatialCollisions` to a separate thread.
-- [ ] **OPT-002: Canvas Frustum Culling**: Strict viewport bounds checking for Konva nodes.
-- [ ] **OPT-003: Predictive Pre-Buffering**: Pre-decode next 3 images in Orchestrator queue.
-- [ ] **OPT-004: Virtualized Asset Vault**: Implement windowing for the `AssetsView` grid.
-- [ ] **OPT-005: Debounced Inputs**: Throttle Neural Forge and Inspector inputs.
+### Phase 4: Quantum Optimization (Completed)
+
+- [x] **OPT-001: Physics Web Worker**: Spatial Hash Grid optimization for O(N) collision detection.
+- [x] **OPT-002: Canvas Frustum Culling**: `useFrustumCull` hook for viewport-based rendering.
+- [x] **OPT-005: Debounced Inputs**: Verified - heavy calls are button-triggered, no flooding.
+- [x] **OPT-006: Enhanced Canvas Layout Engine**: Grid-based image placement on drop.
+- [x] **OPT-007: Adaptive Navigation Layout**: Mode-based navigation docking.
 
 ---
 
-*System auto-generated by THE FORGE.*
+_System auto-generated by THE FORGE._

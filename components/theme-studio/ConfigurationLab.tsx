@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useThrottledCallback } from '../../hooks/useDebouncedCallback';
 import { motion } from 'framer-motion';
 import {
   Sliders,
@@ -55,6 +56,12 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
     setSaveName('');
     setIsSaving(false);
   };
+
+  // Throttle slider updates to reduce re-renders during rapid dragging
+  const throttledUpdateDensity = useThrottledCallback(
+    (value: number) => onUpdateConfig({ particleDensity: value }),
+    50
+  );
 
   return (
     <div className="flex-1 flex flex-col bg-[#0a0a0a]">
@@ -175,7 +182,7 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
                 min="0"
                 max="100"
                 value={activeConfig.particleDensity || 0}
-                onChange={e => onUpdateConfig({ particleDensity: parseInt(e.target.value) })}
+                onChange={e => throttledUpdateDensity(parseInt(e.target.value))}
                 aria-label="Particle density"
                 className="w-full h-1.5 bg-slate-800 rounded-full appearance-none cursor-pointer accent-fuchsia-500"
               />

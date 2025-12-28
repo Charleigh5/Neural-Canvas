@@ -4,7 +4,7 @@ Copy this template when starting a new bug fix session.
 
 ---
 
-## Entry: ERR-YYYY-MM-DD-###
+## Entry: ERR-YYYY-MM-DD-NNN
 
 **File**: `path/to/file.tsx`  
 **Date**: YYYY-MM-DD  
@@ -23,7 +23,7 @@ Copy this template when starting a new bug fix session.
 
 ### Telemetry Data Collected
 
-```
+```text
 [ ] IDE-reported errors (ESLint, TypeScript)
 [ ] Browser console errors
 [ ] Build/compile errors
@@ -33,7 +33,7 @@ Copy this template when starting a new bug fix session.
 
 **Error Output**:
 
-```
+```text
 Paste error messages here
 ```
 
@@ -118,15 +118,15 @@ npx tsc --noEmit
 
 ### References
 
-- [Link to relevant documentation]()
-- [Link to standards/guidelines]()
+- Link to relevant documentation: `<URL>`
+- Link to standards/guidelines: `<URL>`
 - Related entries: ERR-XXXX-XX-XX-###
 
 ---
 
 ### Verification Checklist
 
-```
+```text
 [ ] npm run lint passes
 [ ] npx tsc --noEmit passes
 [ ] npm run build succeeds

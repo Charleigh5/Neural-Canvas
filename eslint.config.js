@@ -34,7 +34,10 @@ export default tseslint.config(
       'react/jsx-uses-react': 'off',
 
       // Custom overrides
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-non-null-assertion': 'warn',
@@ -46,7 +49,7 @@ export default tseslint.config(
       eqeqeq: ['warn', 'always'],
 
       // Allow inline styles for dynamic/runtime-calculated animation properties
-      'react/forbid-dom-props': 'off',
+      'react/forbid-dom-props': ['warn', { forbid: ['style'] }],
     },
   }
 );

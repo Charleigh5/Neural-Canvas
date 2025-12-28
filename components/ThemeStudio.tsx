@@ -26,7 +26,7 @@ export const ThemeStudio: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     orchestrator,
     images,
     updateImage,
-    generateCaption, // Need to expose this from store actions
+    regenerateImageCaption,
   } = useStore();
 
   const [customPrompt, setCustomPrompt] = useState('');
@@ -51,13 +51,8 @@ export const ThemeStudio: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   const handleRegenerateCaption = async () => {
-    if (currentImage && currentImage.tags) {
-      // We can use the store action if exposed, or call service directly if store doesn't expose single generation
-      // For now, assuming we might need to add single caption gen action to store or duplicate logic
-      // Ideally, useStore should expose `regenerateCaption(id)`
-      // Let's check `useStore` again. It has `generateCaptionsForReel` but maybe not single.
-      // If not, I'll add `regenerateImageCaption` to store in next step.
-      // For now, I'll implement a placeholder that will be connected to store.
+    if (currentImage) {
+      await regenerateImageCaption(currentImage.id);
     }
   };
 
@@ -140,11 +135,7 @@ export const ThemeStudio: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           onToggleCaptions={toggleCaptions}
           onGenerateCaptions={generateCaptionsForReel}
           onUpdateCaption={handleUpdateCaption}
-          onRegenerateCaption={
-            currentImage
-              ? () => useStore.getState().regenerateImageCaption?.(currentImage.id)
-              : undefined
-          }
+          onRegenerateCaption={handleRegenerateCaption}
           onSaveTheme={handleSaveTheme}
         />
 

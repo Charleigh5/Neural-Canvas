@@ -14,7 +14,7 @@ This workflow governs how all agents and developers handle bugs, errors, and iss
 
 Before making ANY changes, check `docs/ERROR_RESOLUTION_LOG.md`:
 
-```
+```text
 // turbo
 1. Open docs/ERROR_RESOLUTION_LOG.md
 2. Search for the affected file name
@@ -57,11 +57,13 @@ For EVERY fix attempt:
 1. Describe the change being made
 2. Apply the change
 3. Run verification:
+
    ```powershell
    // turbo
    npm run lint -- --quiet
    npx tsc --noEmit
    ```
+
 4. Record the result (success/failure)
 5. If failed, document WHY and try next approach
 

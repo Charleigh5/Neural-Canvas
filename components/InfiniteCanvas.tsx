@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { Stage, Layer, Line, Group } from 'react-konva';
 import Konva from 'konva';
+import { SynapticLayer } from './canvas/SynapticLayer';
 import { useStore } from '../store/useStore';
 import { ImageAsset } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,8 +11,8 @@ import { useShallow } from 'zustand/react/shallow';
 import { UploadCloud } from 'lucide-react';
 import { MidnightGrid } from './canvas/MidnightGrid';
 import { CanvasNode } from './canvas/CanvasNode';
-import { canvasWorker } from '../services/canvasWorkerService';
 import { useFrustumCull } from '../hooks/useFrustumCull';
+import { CanvasTransformer } from './canvas/CanvasTransformer';
 
 const getDistance = (p1: { x: number; y: number }, p2: { x: number; y: number }) =>
   Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
@@ -20,83 +21,7 @@ const getCenter = (p1: { x: number; y: number }, p2: { x: number; y: number }) =
   y: (p1.y + p2.y) / 2,
 });
 
-// --- SYNAPTIC LAYER: Visualizes AI Reasoning ---
-interface SynapseLineData {
-  key: string;
-  points: number[];
-  stroke: string;
-  strokeWidth: number;
-  opacity: number;
-}
-
-const SynapticLayer = React.memo(function SynapticLayerInner({
-  images,
-  hoveredId,
-}: {
-  images: ImageAsset[];
-  hoveredId: string | null;
-}) {
-  const groupRef = useRef<Konva.Group>(null);
-  const [lines, setLines] = useState<SynapseLineData[]>([]);
-
-  // Offload complex O(N^2) graph calculations to the worker thread
-  useEffect(() => {
-    let isMounted = true;
-
-    const compute = async () => {
-      try {
-        // Ensure worker is available before calling
-        if (canvasWorker) {
-          const result = await canvasWorker.calculateSynapses(images, hoveredId);
-          if (isMounted) {
-            setLines(result || []);
-          }
-        }
-      } catch (e) {
-        console.debug('Synapse calculation skipped', e);
-      }
-    };
-
-    compute();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [images, hoveredId]);
-
-  // Handle GPU Caching for the static vector lines
-  useEffect(() => {
-    const node = groupRef.current;
-    if (node) {
-      node.clearCache();
-      if (lines.length > 0) {
-        try {
-          node.cache({ pixelRatio: 1 });
-        } catch {
-          node.clearCache();
-        }
-      }
-    }
-  }, [lines]);
-
-  return (
-    <Group ref={groupRef} listening={false}>
-      {lines.map(line => (
-        <Line
-          key={line.key}
-          points={line.points}
-          stroke={line.stroke}
-          strokeWidth={line.strokeWidth}
-          opacity={line.opacity}
-          listening={false}
-          tension={0.5}
-          perfectDrawEnabled={false}
-          shadowForStrokeEnabled={false}
-        />
-      ))}
-    </Group>
-  );
-});
+// SynapticLayer extracted to ./canvas/SynapticLayer.tsx for better code organization
 
 export const InfiniteCanvas: React.FC = () => {
   const images = useStore(useShallow(state => state.images));
@@ -487,6 +412,7 @@ export const InfiniteCanvas: React.FC = () => {
               opacity={0.8}
             />
           ))}
+          <CanvasTransformer selectedIds={selectedIds} />
         </Layer>
       </Stage>
 

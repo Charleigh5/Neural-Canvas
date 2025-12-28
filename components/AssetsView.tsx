@@ -1,6 +1,6 @@
-import React, { useRef, useState, useEffect } from "react";
-import { useStore } from "../store/useStore";
-import { TiltCard } from "./ui/TiltCard";
+import React, { useRef, useState, useEffect } from 'react';
+import { useStore } from '../store/useStore';
+import { TiltCard } from './ui/TiltCard';
 import {
   Upload,
   Box,
@@ -12,30 +12,20 @@ import {
   CheckCircle2,
   Loader2,
   UploadCloud,
-} from "lucide-react";
-import { GooglePhotosBrowser } from "./GooglePhotosBrowser";
-import { useImage } from "../hooks/useImage";
-import { motion, AnimatePresence } from "framer-motion";
+} from 'lucide-react';
+import { GooglePhotosBrowser } from './GooglePhotosBrowser';
+import { useImage } from '../hooks/useImage';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // --- SMART THUMBNAIL COMPONENT ---
 // Resolves secure IDB blobs into viewable URLs or draws ImageBitmap
-const AssetThumbnail = ({
-  url,
-  className,
-}: {
-  url: string;
-  className: string;
-}) => {
+const AssetThumbnail = ({ url, className }: { url: string; className: string }) => {
   const [img, status] = useImage(url);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (
-      status === "loaded" &&
-      img instanceof ImageBitmap &&
-      canvasRef.current
-    ) {
-      const ctx = canvasRef.current.getContext("2d");
+    if (status === 'loaded' && img instanceof ImageBitmap && canvasRef.current) {
+      const ctx = canvasRef.current.getContext('2d');
       if (ctx) {
         // Ensure canvas resolution matches image
         canvasRef.current.width = img.width;
@@ -45,9 +35,8 @@ const AssetThumbnail = ({
     }
   }, [img, status]);
 
-  if (status === "loading")
-    return <div className="absolute inset-0 bg-white/5 animate-pulse" />;
-  if (status === "failed" || !img)
+  if (status === 'loading') return <div className="absolute inset-0 bg-white/5 animate-pulse" />;
+  if (status === 'failed' || !img)
     return (
       <div className="absolute inset-0 bg-rose-900/20 flex items-center justify-center text-[8px] text-rose-500">
         ERR
@@ -58,26 +47,17 @@ const AssetThumbnail = ({
     return <canvas ref={canvasRef} className={className} />;
   }
 
-  return (
-    <img
-      src={(img as HTMLImageElement).src}
-      className={className}
-      alt="asset"
-    />
-  );
+  return <img src={(img as HTMLImageElement).src} className={className} alt="asset" />;
 };
 
 export const AssetsView: React.FC = () => {
-  const { images, addImage, selectedIds, setSelectedIds, setCameraOpen } =
-    useStore();
+  const { images, addImage, selectedIds, setSelectedIds, setCameraOpen } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showGooglePhotos, setShowGooglePhotos] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   const handleFileProcess = (files: FileList | File[]) => {
-    const fileArray = Array.from(files).filter((f) =>
-      f.type.startsWith("image/")
-    );
+    const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
 
     // GRID CONFIG
     const COLS = 5;
@@ -90,7 +70,7 @@ export const AssetsView: React.FC = () => {
       const y = 100 + row * CELL_SIZE;
 
       const reader = new FileReader();
-      reader.onload = (ev) => {
+      reader.onload = ev => {
         const src = ev.target?.result as string;
         const imgObj = new window.Image();
         imgObj.src = src;
@@ -105,7 +85,7 @@ export const AssetsView: React.FC = () => {
             y: y,
             rotation: 0,
             scale: 1,
-            tags: ["imported"],
+            tags: ['imported'],
             analyzed: false,
             timestamp: Date.now(),
           });
@@ -144,9 +124,7 @@ export const AssetsView: React.FC = () => {
   const toggleSelection = (id: string, event: React.MouseEvent) => {
     if (event.shiftKey || event.ctrlKey || event.metaKey) {
       setSelectedIds(
-        selectedIds.includes(id)
-          ? selectedIds.filter((sid) => sid !== id)
-          : [...selectedIds, id]
+        selectedIds.includes(id) ? selectedIds.filter(sid => sid !== id) : [...selectedIds, id]
       );
     } else {
       setSelectedIds([id]);
@@ -160,9 +138,7 @@ export const AssetsView: React.FC = () => {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {showGooglePhotos && (
-        <GooglePhotosBrowser onClose={() => setShowGooglePhotos(false)} />
-      )}
+      {showGooglePhotos && <GooglePhotosBrowser onClose={() => setShowGooglePhotos(false)} />}
 
       {/* DRAG OVERLAY */}
       <AnimatePresence>
@@ -212,18 +188,14 @@ export const AssetsView: React.FC = () => {
               <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
                 Total_indexed
               </div>
-              <div className="text-lg font-mono text-indigo-400">
-                {images.length}
-              </div>
+              <div className="text-lg font-mono text-indigo-400">{images.length}</div>
             </div>
             {selectedIds.length > 0 && (
               <div className="text-right border-l border-white/10 pl-6">
                 <div className="text-[8px] font-black text-rose-500 uppercase tracking-widest">
                   Selected_nodes
                 </div>
-                <div className="text-lg font-mono text-rose-500">
-                  {selectedIds.length}
-                </div>
+                <div className="text-lg font-mono text-rose-500">{selectedIds.length}</div>
               </div>
             )}
           </div>
@@ -280,22 +252,20 @@ export const AssetsView: React.FC = () => {
           </button>
 
           {/* --- ASSET LIST --- */}
-          {images.map((img) => {
+          {images.map(img => {
             const isSelected = selectedIds.includes(img.id);
             return (
               <TiltCard
                 key={img.id}
                 className="aspect-square flex flex-col p-0 rounded-2xl group"
                 selected={isSelected}
-                onClick={(e: any) => toggleSelection(img.id, e)}
+                onClick={(e: React.MouseEvent) => toggleSelection(img.id, e)}
               >
                 <div className="flex-1 relative overflow-hidden bg-black/40">
                   <AssetThumbnail
                     url={img.url}
                     className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 ${
-                      isSelected
-                        ? "scale-110 opacity-100"
-                        : "opacity-60 group-hover:opacity-90"
+                      isSelected ? 'scale-110 opacity-100' : 'opacity-60 group-hover:opacity-90'
                     }`}
                   />
 
@@ -312,36 +282,27 @@ export const AssetsView: React.FC = () => {
                     <div className="absolute top-3 right-3 w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-[0_0_10px_#f59e0b]" />
                   )}
 
-                  {img.variantType === "edit" && (
+                  {img.variantType === 'edit' && (
                     <div className="absolute bottom-3 left-3 px-2 py-1 bg-indigo-900/80 border border-indigo-500/50 rounded-md text-[8px] text-indigo-200 font-mono flex items-center gap-1.5 backdrop-blur-md">
-                      <CloudLightning size={10} className="text-indigo-400" />{" "}
-                      REMIX_V1
+                      <CloudLightning size={10} className="text-indigo-400" /> REMIX_V1
                     </div>
                   )}
                 </div>
                 <div
                   className={`h-20 border-t transition-colors duration-300 p-4 flex flex-col justify-center gap-1.5 ${
                     isSelected
-                      ? "bg-indigo-950/40 border-indigo-500/30"
-                      : "bg-slate-900/20 border-white/5"
+                      ? 'bg-indigo-950/40 border-indigo-500/30'
+                      : 'bg-slate-900/20 border-white/5'
                   }`}
                 >
                   <div className="flex items-center gap-2 text-[10px] text-white font-black tracking-widest uppercase truncate">
-                    <Tag
-                      size={12}
-                      className={
-                        isSelected ? "text-indigo-400" : "text-slate-600"
-                      }
-                    />
-                    <span className="truncate">
-                      {img.tags[0] || "INDEXING..."}
-                    </span>
+                    <Tag size={12} className={isSelected ? 'text-indigo-400' : 'text-slate-600'} />
+                    <span className="truncate">{img.tags[0] || 'INDEXING...'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-[9px] text-slate-500 font-mono tracking-tighter">
                     <Clock size={10} className="opacity-50" />
                     <span>
-                      {new Date(img.timestamp).toLocaleTimeString()} //{" "}
-                      {img.width}x{img.height}
+                      {new Date(img.timestamp).toLocaleTimeString()} {img.width}x{img.height}
                     </span>
                   </div>
                 </div>

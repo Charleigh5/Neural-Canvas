@@ -5,11 +5,11 @@ export const useVoiceInput = () => {
   const [transcript, setTranscript] = useState('');
 
   const startListening = useCallback(() => {
-    // @ts-ignore
+    // @ts-expect-error - SpeechRecognition is a non-standard Web API
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
+
     if (!SpeechRecognition) {
-      alert("Browser does not support speech recognition.");
+      alert('Browser does not support speech recognition.');
       return;
     }
 
@@ -20,15 +20,15 @@ export const useVoiceInput = () => {
 
     recognition.onstart = () => setIsListening(true);
     recognition.onend = () => setIsListening(false);
-    
+
     recognition.onresult = (event: any) => {
       const text = event.results[0][0].transcript;
       setTranscript(text);
     };
 
     recognition.onerror = (event: any) => {
-        console.error("Speech recognition error", event.error);
-        setIsListening(false);
+      console.error('Speech recognition error', event.error);
+      setIsListening(false);
     };
 
     recognition.start();

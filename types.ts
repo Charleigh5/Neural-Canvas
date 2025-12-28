@@ -4,6 +4,7 @@ export enum AppMode {
   STUDIO = 'STUDIO',
   ASSETS = 'ASSETS',
   PLAYER = 'PLAYER',
+  CONSTELLATION = 'CONSTELLATION',
 }
 
 export type BezelTheme = 'standard' | 'christmas' | 'frost' | 'gold' | 'candy' | 'custom';
@@ -219,4 +220,20 @@ export interface ExportState {
   totalFrames: number;
   config: ExportConfig;
   error: string | null;
+}
+
+export type ForgeTab =
+  | 'forge'
+  | 'style'
+  | 'inpaint'
+  | 'prop'
+  | 'upscale'
+  | 'atmosphere'
+  | 'frame'
+  | 'backdrop'
+  | 'camera';
+
+export interface Point {
+  x: number;
+  y: number;
 }

@@ -3,7 +3,6 @@ import { useStore } from '../store/useStore';
 import {
   Play,
   Pause,
-  X,
   Film,
   Sparkles,
   UploadCloud,
@@ -11,11 +10,8 @@ import {
   Plus,
   Save,
   FolderOpen,
-  Trash2,
   Cloud,
   Eye,
-  AlertTriangle,
-  CheckCircle2,
   Palette,
   Wand2,
   Loader2,
@@ -25,6 +21,9 @@ import { GooglePhotosBrowser } from './GooglePhotosBrowser';
 import { ThemePreviewModal } from './ThemePreviewModal';
 import { ExportModal } from './ExportModal';
 import { SequencerItem } from './sequencer/SequencerItem';
+import { useSequencerDrag } from '../hooks/useSequencerDrag';
+import { SaveReelModal } from './sequencer/SaveReelModal';
+import { ReelLibrary } from './sequencer/ReelLibrary';
 
 // Constants for Virtualization
 const ITEM_WIDTH = 192; // w-48
@@ -40,7 +39,6 @@ export const StudioSequencer = () => {
   const {
     images,
     reel,
-    savedReels,
     playback,
     togglePlayback,
     orchestrator,
@@ -52,11 +50,6 @@ export const StudioSequencer = () => {
     updateImage,
     applySmartCrop,
     reanalyzeImage,
-    addImage,
-    addToReel,
-    saveReel,
-    loadReel,
-    deleteReel,
     playReel,
     toggleUiPanel,
     orchestrateReel,
@@ -64,14 +57,12 @@ export const StudioSequencer = () => {
   } = useStore();
 
   const [localReel, setLocalReel] = useState(reel);
-  const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const { isDraggingFile, handleDragOver, handleDragLeave, handleDrop } = useSequencerDrag();
 
   // Save State
   const [isSaving, setIsSaving] = useState(false);
-  const [newReelName, setNewReelName] = useState('');
-  const [overwriteTargetId, setOverwriteTargetId] = useState<string | null>(null);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  // removed legacy save state
 
   const [showGooglePhotos, setShowGooglePhotos] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -149,82 +140,8 @@ export const StudioSequencer = () => {
     [reanalyzeImage, performUpscale, applySmartCrop, duplicateImage, updateImage, performImageEdit]
   );
 
-  // --- DRAG HANDLERS ---
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDraggingFile(true);
-  };
-  const handleDragLeave = (e: React.DragEvent) => {
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDraggingFile(false);
-  };
-
-  // FIX: Added explicit File casting to handle drop correctly in TypeScript
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDraggingFile(false);
-    const files = Array.from(e.dataTransfer.files as FileList).filter((f: File) =>
-      f.type.startsWith('image/')
-    );
-    if (files.length > 0) {
-      const newIds: string[] = [];
-      for (const file of files as File[]) {
-        const id = Math.random().toString(36).substring(2, 11);
-        newIds.push(id);
-        const reader = new FileReader();
-        reader.onload = async ev => {
-          const src = ev.target?.result as string;
-          const imgObj = new window.Image();
-          imgObj.src = src;
-          imgObj.onload = () => {
-            addImage({
-              id,
-              url: src,
-              file: file,
-              width: 400,
-              height: 400 * (imgObj.height / imgObj.width),
-              x: 0,
-              y: 0,
-              rotation: 0,
-              scale: 1,
-              tags: ['sequencer_drop', 'analyzing...'],
-              analyzed: false,
-              timestamp: Date.now(),
-              duration: 5,
-            });
-          };
-        };
-        reader.readAsDataURL(file);
-      }
-      addToReel(newIds);
-    }
-  };
-
-  const handleSaveRequest = () => {
-    const name = newReelName.trim();
-    if (!name) return;
-
-    const existing = savedReels.find(r => r.name.toLowerCase() === name.toLowerCase());
-    if (existing) {
-      setOverwriteTargetId(existing.id);
-    } else {
-      performSave(name);
-    }
-  };
-
-  const performSave = (name: string, id?: string) => {
-    try {
-      saveReel(name, id);
-      setSaveStatus('success');
-      setTimeout(() => {
-        setIsSaving(false);
-        setSaveStatus('idle');
-        setNewReelName('');
-        setOverwriteTargetId(null);
-      }, 1500);
-    } catch (e) {
-      setSaveStatus('error');
-    }
-  };
+  // Drag handlers replaced by hook
+  // Save handlers moved to SaveReelModal
 
   const isReelEmpty = localReel.length === 0;
 
@@ -426,146 +343,10 @@ export const StudioSequencer = () => {
       </div>
 
       {/* SAVE DIALOG */}
-      <AnimatePresence>
-        {isSaving && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 shadow-2xl w-96 flex flex-col gap-4 overflow-hidden"
-          >
-            {saveStatus === 'success' ? (
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="flex flex-col items-center justify-center py-6 text-emerald-500"
-              >
-                <CheckCircle2 size={48} className="mb-2" />
-                <span className="text-xs font-black uppercase tracking-widest">Reel Secure</span>
-              </motion.div>
-            ) : overwriteTargetId ? (
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3 text-amber-500 bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
-                  <AlertTriangle size={20} />
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-black uppercase tracking-widest">
-                      Conflict Detected
-                    </span>
-                    <span className="text-[9px] font-mono opacity-80">
-                      A reel named '{newReelName}' already exists.
-                    </span>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setOverwriteTargetId(null)}
-                    className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-400 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => performSave(newReelName, overwriteTargetId)}
-                    className="flex-1 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-bold text-white transition-colors"
-                  >
-                    Overwrite
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-between items-center text-[10px] font-black uppercase text-slate-500 tracking-widest">
-                  <span>Persist Sequence</span>
-                  <button
-                    onClick={() => setIsSaving(false)}
-                    className="hover:text-white"
-                    aria-label="Close save dialog"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-                <input
-                  autoFocus
-                  type="text"
-                  placeholder="Enter unique designation..."
-                  value={newReelName}
-                  onChange={e => setNewReelName(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSaveRequest()}
-                  className="bg-black border border-white/10 rounded-xl p-3 text-xs font-mono text-white focus:border-indigo-500 outline-none shadow-inner"
-                />
-                <button
-                  onClick={handleSaveRequest}
-                  disabled={!newReelName.trim()}
-                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl shadow-lg shadow-indigo-500/20 transition-all"
-                >
-                  Confirm Save
-                </button>
-              </>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <SaveReelModal isOpen={isSaving} onClose={() => setIsSaving(false)} />
 
       {/* LIBRARY DRAWER */}
-      <AnimatePresence>
-        {isLibraryOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 160, opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="bg-[#020202] border-b border-white/10 overflow-hidden relative z-40"
-          >
-            <div className="flex gap-4 p-6 overflow-x-auto custom-scrollbar h-full items-center">
-              {savedReels.length === 0 ? (
-                <div className="text-slate-600 text-xs font-mono uppercase tracking-widest w-full text-center">
-                  No Saved Reels Found
-                </div>
-              ) : (
-                savedReels.map(reel => (
-                  <div
-                    key={reel.id}
-                    className="group relative shrink-0 w-40 cursor-pointer"
-                    onClick={() => loadReel(reel.id)}
-                  >
-                    <div className="aspect-video bg-slate-900 rounded-lg border border-white/10 overflow-hidden group-hover:border-indigo-500/50 transition-colors">
-                      {reel.thumbnailUrl ? (
-                        <img
-                          src={reel.thumbnailUrl}
-                          alt={`Thumbnail for ${reel.name} reel`}
-                          className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-700">
-                          <Film size={24} />
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-2 flex justify-between items-start">
-                      <div>
-                        <div className="text-[10px] font-bold text-slate-300 group-hover:text-white truncate max-w-[120px]">
-                          {reel.name}
-                        </div>
-                        <div className="text-[8px] font-mono text-slate-600">
-                          {reel.itemIds.length} Items
-                        </div>
-                      </div>
-                      <button
-                        onClick={e => {
-                          e.stopPropagation();
-                          deleteReel(reel.id);
-                        }}
-                        className="text-slate-600 hover:text-rose-500 transition-colors"
-                        aria-label={`Delete ${reel.name} reel`}
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ReelLibrary isOpen={isLibraryOpen} />
 
       {/* TIMELINE */}
       <div

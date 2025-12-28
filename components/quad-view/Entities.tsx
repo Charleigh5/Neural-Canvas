@@ -1,7 +1,6 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Gift, Star, Wind, Snowflake, Zap } from 'lucide-react';
+import { Sparkles, Gift, Star, Wind, Snowflake } from 'lucide-react';
 import { BezelTheme } from '../../types';
 
 /**
@@ -9,7 +8,16 @@ import { BezelTheme } from '../../types';
  * High-speed particles with erratic spiral motion and varying spectral glow.
  * Moved outside SleighSquad to fix TypeScript 'key' prop assignment issues and optimize rendering.
  */
-const MagicParticle = ({ index, color, isFrost = false }: { index: number; color: string; isFrost?: boolean; key?: React.Key }) => (
+const MagicParticle = ({
+  index,
+  color,
+  isFrost = false,
+}: {
+  index: number;
+  color: string;
+  isFrost?: boolean;
+  key?: React.Key;
+}) => (
   <motion.div
     className={`absolute rounded-full ${color}`}
     style={{
@@ -36,7 +44,9 @@ const MagicParticle = ({ index, color, isFrost = false }: { index: number; color
     {isFrost ? (
       <Snowflake size={8} className="text-white opacity-40" />
     ) : (
-      index % 8 === 0 && <Star size={5} className="text-yellow-100 opacity-70" fill="currentColor" />
+      index % 8 === 0 && (
+        <Star size={5} className="text-yellow-100 opacity-70" fill="currentColor" />
+      )
     )}
   </motion.div>
 );
@@ -91,7 +101,7 @@ const ReindeerTeam = ({
       <span className="relative z-10 filter drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">🦌</span>
 
       {/* Individual Hoof Sparks */}
-      {[0, 1, 2, 3].map((h) => (
+      {[0, 1, 2, 3].map(h => (
         <motion.div
           key={h}
           className="absolute -bottom-3 text-yellow-300 pointer-events-none"
@@ -141,6 +151,9 @@ const ReindeerTeam = ({
   </motion.div>
 );
 
+// Style constants (defined once, reused across renders)
+// Converted to Tailwind classes in usage to avoid inline styles
+
 // 1. Entity: Santa with Magic Dust & Enhanced Reindeer Formation
 export const SleighSquad = ({ theme }: { theme: BezelTheme }) => {
   if (theme !== 'christmas') return null;
@@ -148,10 +161,8 @@ export const SleighSquad = ({ theme }: { theme: BezelTheme }) => {
   return (
     <div className="absolute top-0 left-0 w-full h-full z-[60] pointer-events-none overflow-hidden">
       {/* --- THE SPECTRAL ESCORT (Flanking Reindeer) --- */}
-      <div
-        className="animate-sleigh absolute"
-        style={{ top: '35%', left: '0', animationDelay: '-2s', animationDuration: '22s' }}
-      >
+      {/* --- THE SPECTRAL ESCORT (Flanking Reindeer) --- */}
+      <div className="animate-sleigh absolute top-[35%] left-0 [animation-delay:-2s] [animation-duration:22s]">
         <div className="flex flex-col gap-12 -translate-x-24 opacity-30 filter blur-[4px]">
           <ReindeerTeam key="escort-1" delay={0.1} opacity={0.4} scale={0.7} />
           <div className="translate-x-32">
@@ -161,7 +172,8 @@ export const SleighSquad = ({ theme }: { theme: BezelTheme }) => {
       </div>
 
       {/* --- MAIN FLIGHT SQUADRON --- */}
-      <div className="animate-sleigh absolute" style={{ top: '15%', left: '0', zIndex: 20 }}>
+      {/* --- MAIN FLIGHT SQUADRON --- */}
+      <div className="animate-sleigh absolute top-[15%] left-0 z-20">
         <div className="relative flex items-center scale-110">
           {/* Reindeer Team Formation */}
           <div className="flex items-center space-x-3 mr-6">
@@ -181,7 +193,9 @@ export const SleighSquad = ({ theme }: { theme: BezelTheme }) => {
             <div className="text-7xl filter drop-shadow-[0_0_50px_rgba(234,179,8,0.7)] relative z-10 transition-transform duration-500 group-hover:scale-110">
               🛷
             </div>
-            <div className="absolute -top-10 left-8 text-5xl animate-bounce origin-bottom z-20">🎅</div>
+            <div className="absolute -top-10 left-8 text-5xl animate-bounce origin-bottom z-20">
+              🎅
+            </div>
             <div className="absolute -top-7 right-2 text-3xl animate-pulse z-20">🎁</div>
 
             {/* ENHANCED RUNNER TRAILS */}
@@ -218,12 +232,12 @@ export const SleighSquad = ({ theme }: { theme: BezelTheme }) => {
                     i % 5 === 0
                       ? 'bg-cyan-200'
                       : i % 5 === 1
-                      ? 'bg-yellow-300'
-                      : i % 5 === 2
-                      ? 'bg-white'
-                      : i % 5 === 3
-                      ? 'bg-red-400'
-                      : 'bg-emerald-300'
+                        ? 'bg-yellow-300'
+                        : i % 5 === 2
+                          ? 'bg-white'
+                          : i % 5 === 3
+                            ? 'bg-red-400'
+                            : 'bg-emerald-300'
                   }
                   isFrost={i % 6 === 0}
                 />
@@ -232,7 +246,7 @@ export const SleighSquad = ({ theme }: { theme: BezelTheme }) => {
 
             {/* ATMOSPHERIC SPEED RIBBONS */}
             <div className="absolute -left-64 top-0 bottom-0 flex flex-col justify-around py-4 opacity-75">
-              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
                 <motion.div
                   key={`ribbon-${i}`}
                   className="h-[2px] bg-gradient-to-l from-white/95 via-cyan-200/40 to-transparent blur-[2px] origin-right"
@@ -274,15 +288,19 @@ export const SleighSquad = ({ theme }: { theme: BezelTheme }) => {
       </div>
 
       {/* --- AMBIENT FESTIVE GLOWS (Trailing the formation) --- */}
-      <div
-        className="animate-sleigh absolute opacity-40 blur-[2px]"
-        style={{ top: '45%', left: '15%', animationDuration: '35s' }}
-      >
+      <div className="animate-sleigh absolute opacity-40 blur-[2px] top-[45%] left-[15%] [animation-duration:35s]">
         <div className="flex gap-32 items-center">
-          <Star size={24} className="text-yellow-100 animate-twinkle fill-current shadow-[0_0_20px_white]" />
+          <Star
+            size={24}
+            className="text-yellow-100 animate-twinkle fill-current shadow-[0_0_20px_white]"
+          />
           <Wind size={40} className="text-white/30 animate-pulse" />
           <Snowflake size={20} className="text-cyan-100 animate-spin-slow" />
-          <Star size={18} className="text-white animate-twinkle" style={{ animationDelay: '1.8s' }} />
+          <Star
+            size={18}
+            className="text-white animate-twinkle"
+            style={{ animationDelay: '1.8s' }}
+          />
         </div>
       </div>
     </div>
@@ -291,11 +309,11 @@ export const SleighSquad = ({ theme }: { theme: BezelTheme }) => {
 
 // 2. Entity: Yeti MK-II (Refined Observer)
 export const YetiObserver = ({ theme }: { theme: BezelTheme }) => {
-  if (theme !== 'christmas') return null;
-
   const [isThrowing, setIsThrowing] = useState(false);
 
   useEffect(() => {
+    if (theme !== 'christmas') return;
+
     const interval = setInterval(() => {
       if (Math.random() < 0.25) {
         setIsThrowing(true);
@@ -303,36 +321,45 @@ export const YetiObserver = ({ theme }: { theme: BezelTheme }) => {
       }
     }, 3500);
     return () => clearInterval(interval);
-  }, []);
+  }, [theme]);
+
+  if (theme !== 'christmas') return null;
 
   return (
     <div className="absolute bottom-0 right-32 z-[15] pointer-events-none overflow-hidden w-64 h-64 flex items-end justify-center">
       <div className="animate-yeti transform translate-y-full origin-bottom">
-        
         {/* FESTIVE SANTA HAT */}
         <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-32 h-20 pointer-events-none z-20 overflow-visible">
-            <motion.div
-              className="w-full h-full"
-              animate={{ rotate: [-2, 2, -2] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            >
-              <svg viewBox="0 0 100 60" className="w-full h-full drop-shadow-lg overflow-visible">
-                {/* Red Hat Base (Floppy shape) */}
-                <path d="M20,50 C20,20 40,5 60,5 C80,5 85,25 85,35" fill="#ef4444" />
-                <path d="M20,50 C20,20 40,5 60,5 C80,5 85,25 85,35" fill="none" stroke="#b91c1c" strokeWidth="1" />
-                
-                {/* White Fur Trim */}
-                <rect x="10" y="42" width="55" height="12" rx="6" fill="white" />
-                
-                {/* Dangling Pom-pom */}
-                <motion.circle 
-                  cx="85" cy="35" r="8" fill="white" 
-                  className="drop-shadow-md"
-                  animate={{ y: [0, 5, 0], x: [0, 2, 0] }}
-                  transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-                />
-              </svg>
-            </motion.div>
+          <motion.div
+            className="w-full h-full"
+            animate={{ rotate: [-2, 2, -2] }}
+            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <svg viewBox="0 0 100 60" className="w-full h-full drop-shadow-lg overflow-visible">
+              {/* Red Hat Base (Floppy shape) */}
+              <path d="M20,50 C20,20 40,5 60,5 C80,5 85,25 85,35" fill="#ef4444" />
+              <path
+                d="M20,50 C20,20 40,5 60,5 C80,5 85,25 85,35"
+                fill="none"
+                stroke="#b91c1c"
+                strokeWidth="1"
+              />
+
+              {/* White Fur Trim */}
+              <rect x="10" y="42" width="55" height="12" rx="6" fill="white" />
+
+              {/* Dangling Pom-pom */}
+              <motion.circle
+                cx="85"
+                cy="35"
+                r="8"
+                fill="white"
+                className="drop-shadow-md"
+                animate={{ y: [0, 5, 0], x: [0, 2, 0] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+              />
+            </svg>
+          </motion.div>
         </div>
 
         <div className="relative w-32 h-28 bg-slate-100 rounded-t-[50px] shadow-2xl border border-slate-300">
@@ -381,6 +408,8 @@ export const YetiObserver = ({ theme }: { theme: BezelTheme }) => {
 };
 
 // 3. Decoration: Animated Gift Boxes with Fluttering Ribbons
+// opacity via class
+
 export const GiftBoxArray = ({ theme }: { theme: BezelTheme }) => {
   if (theme !== 'christmas') return null;
 
@@ -426,8 +455,7 @@ export const GiftBoxArray = ({ theme }: { theme: BezelTheme }) => {
               width={box.size * 2}
               height={box.size * 2}
               viewBox="0 0 48 48"
-              className="absolute top-[-50%] left-[-50%] pointer-events-none overflow-visible z-20"
-              style={{ opacity: 0.9 }}
+              className="absolute top-[-50%] left-[-50%] pointer-events-none overflow-visible z-20 opacity-90"
             >
               {/* Left Ribbon End */}
               <motion.path
@@ -437,7 +465,12 @@ export const GiftBoxArray = ({ theme }: { theme: BezelTheme }) => {
                 fill="none"
                 strokeLinecap="round"
                 animate={{
-                  d: ["M 24,12 Q 18,6 12,10", "M 24,12 Q 15,4 10,8", "M 24,12 Q 20,8 14,12", "M 24,12 Q 18,6 12,10"],
+                  d: [
+                    'M 24,12 Q 18,6 12,10',
+                    'M 24,12 Q 15,4 10,8',
+                    'M 24,12 Q 20,8 14,12',
+                    'M 24,12 Q 18,6 12,10',
+                  ],
                 }}
                 transition={{
                   duration: 1.5 + Math.random() * 1.5,
@@ -454,7 +487,12 @@ export const GiftBoxArray = ({ theme }: { theme: BezelTheme }) => {
                 fill="none"
                 strokeLinecap="round"
                 animate={{
-                  d: ["M 24,12 Q 30,6 36,10", "M 24,12 Q 33,4 38,8", "M 24,12 Q 28,8 34,12", "M 24,12 Q 30,6 36,10"],
+                  d: [
+                    'M 24,12 Q 30,6 36,10',
+                    'M 24,12 Q 33,4 38,8',
+                    'M 24,12 Q 28,8 34,12',
+                    'M 24,12 Q 30,6 36,10',
+                  ],
                 }}
                 transition={{
                   duration: 1.8 + Math.random() * 1.2,
