@@ -1,4 +1,3 @@
-
 import { useStore } from '../store/useStore';
 
 /**
@@ -96,170 +95,211 @@ self.onmessage = async function(e) {
 
 type Priority = 'high' | 'low';
 
+// Node data for synapse calculation
+interface SynapseNode {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scale: number;
+  tags?: string[];
+  isStackChild?: boolean;
+  parentId?: string;
+}
+
+// Result line from synapse calculation
+interface SynapseLine {
+  points: number[];
+  stroke: string;
+  strokeWidth: number;
+  opacity: number;
+  key: string;
+}
+
 interface QueueItem {
-    type: string;
-    payload: any;
-    resolve: (val: any) => void;
-    reject: (err: any) => void;
-    id: number;
+  type: string;
+  payload: { blob?: Blob; nodes?: SynapseNode[]; hoveredId?: string | null };
+  resolve: (val: unknown) => void;
+  reject: (err: Error) => void;
+  id: number;
 }
 
 class CanvasWorkerService {
-    private worker: Worker | null = null;
-    private callbacks = new Map<number, { resolve: (val: any) => void, reject: (err: any) => void }>();
-    private idCounter = 0;
-    private initPromise: Promise<void>;
-    private workerUrl: string | null = null;
+  private worker: Worker | null = null;
+  private callbacks = new Map<
+    number,
+    { resolve: (val: unknown) => void; reject: (err: Error) => void }
+  >();
+  private idCounter = 0;
+  private initPromise: Promise<void>;
+  private workerUrl: string | null = null;
 
-    // Queue for low priority tasks (background loading)
-    private lowPriorityQueue: QueueItem[] = [];
-    private activeLowPriorityCount = 0;
-    private readonly MAX_CONCURRENT_LOW_PRIORITY = 1;
+  // Queue for low priority tasks (background loading)
+  private lowPriorityQueue: QueueItem[] = [];
+  private activeLowPriorityCount = 0;
+  private readonly MAX_CONCURRENT_LOW_PRIORITY = 1;
 
-    constructor() {
-        this.initPromise = this.init();
-    }
+  constructor() {
+    this.initPromise = this.init();
+  }
 
-    private async init() {
-        if (typeof window === 'undefined') return;
+  private async init() {
+    if (typeof window === 'undefined') return;
 
-        try {
-            // Create a Blob from the inlined code to avoid URL construction errors with 'import.meta.url'
-            const blob = new Blob([WORKER_CODE], { type: 'application/javascript' });
-            
-            // Create an Object URL for the Blob
-            this.workerUrl = URL.createObjectURL(blob);
-            
-            // Initialize Worker with the Blob URL
-            this.worker = new Worker(this.workerUrl, { name: 'StudioOS_CanvasWorker' });
+    try {
+      // Create a Blob from the inlined code to avoid URL construction errors with 'import.meta.url'
+      const blob = new Blob([WORKER_CODE], { type: 'application/javascript' });
 
-            this.worker.onmessage = (e) => {
-                const { id, success, result, error } = e.data;
-                if (this.callbacks.has(id)) {
-                    const { resolve, reject } = this.callbacks.get(id)!;
-                    if (success) {
-                        resolve(result);
-                    } else {
-                        console.warn(`Canvas Worker Task ${id} Failed:`, error);
-                        reject(new Error(error));
-                    }
-                    this.callbacks.delete(id);
-                }
-            };
-            
-            this.worker.onerror = (e: ErrorEvent) => {
-                console.error("Canvas Worker Runtime Error:", e.message);
-                useStore.getState().addCouncilLog(`Canvas Worker Error: ${e.message}`, 'error');
-            };
+      // Create an Object URL for the Blob
+      this.workerUrl = URL.createObjectURL(blob);
 
-        } catch (e: any) {
-            console.error("Canvas Worker Initialization Failed:", e);
-            useStore.getState().addCouncilLog(`Worker Init Failed: ${e.message}`, 'error');
-            this.worker = null;
-        }
-    }
+      // Initialize Worker with the Blob URL
+      this.worker = new Worker(this.workerUrl, { name: 'StudioOS_CanvasWorker' });
 
-    public terminate() {
-        if (this.worker) {
-            this.worker.terminate();
-            this.worker = null;
-        }
-        if (this.workerUrl) {
-            URL.revokeObjectURL(this.workerUrl);
-            this.workerUrl = null;
-        }
-    }
-
-    private executeTask(task: QueueItem, isLowPriority = false) {
-        this.callbacks.set(task.id, {
-            resolve: (val) => {
-                task.resolve(val);
-                if (isLowPriority) {
-                    this.activeLowPriorityCount--;
-                    this.processQueue();
-                }
-            },
-            reject: (err) => {
-                task.reject(err);
-                if (isLowPriority) {
-                    this.activeLowPriorityCount--;
-                    this.processQueue();
-                }
+      this.worker.onmessage = e => {
+        const { id, success, result, error } = e.data;
+        if (this.callbacks.has(id)) {
+          const callback = this.callbacks.get(id);
+          if (callback) {
+            const { resolve, reject } = callback;
+            if (success) {
+              resolve(result);
+            } else {
+              console.warn(`Canvas Worker Task ${id} Failed:`, error);
+              reject(new Error(error));
             }
-        });
+            this.callbacks.delete(id);
+          }
+        }
+      };
 
-        if (this.worker) {
-            this.worker.postMessage({ id: task.id, type: task.type, payload: task.payload });
+      this.worker.onerror = (e: ErrorEvent) => {
+        console.error('Canvas Worker Runtime Error:', e.message);
+        useStore.getState().addCouncilLog(`Canvas Worker Error: ${e.message}`, 'error');
+      };
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      console.error('Canvas Worker Initialization Failed:', e);
+      useStore.getState().addCouncilLog(`Worker Init Failed: ${message}`, 'error');
+      this.worker = null;
+    }
+  }
+
+  public terminate() {
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
+    }
+    if (this.workerUrl) {
+      URL.revokeObjectURL(this.workerUrl);
+      this.workerUrl = null;
+    }
+  }
+
+  private executeTask(task: QueueItem, isLowPriority = false) {
+    this.callbacks.set(task.id, {
+      resolve: val => {
+        task.resolve(val);
+        if (isLowPriority) {
+          this.activeLowPriorityCount--;
+          this.processQueue();
+        }
+      },
+      reject: err => {
+        task.reject(err);
+        if (isLowPriority) {
+          this.activeLowPriorityCount--;
+          this.processQueue();
+        }
+      },
+    });
+
+    if (this.worker) {
+      this.worker.postMessage({ id: task.id, type: task.type, payload: task.payload });
+    } else {
+      // Fallback if worker failed to init
+      if (task.type === 'DECODE_BITMAP' && task.payload.blob) {
+        // Try main thread decode as backup
+        const blob = task.payload.blob;
+        createImageBitmap(blob)
+          .then(bmp => this.callbacks.get(task.id)?.resolve(bmp))
+          .catch(err =>
+            this.callbacks.get(task.id)?.reject(err instanceof Error ? err : new Error(String(err)))
+          )
+          .finally(() => this.callbacks.delete(task.id));
+      } else {
+        // For synapses, just return empty array to prevent crash
+        task.resolve([] as SynapseLine[]);
+      }
+    }
+  }
+
+  private processQueue() {
+    if (
+      this.activeLowPriorityCount < this.MAX_CONCURRENT_LOW_PRIORITY &&
+      this.lowPriorityQueue.length > 0
+    ) {
+      const task = this.lowPriorityQueue.shift();
+      if (task) {
+        this.activeLowPriorityCount++;
+        this.executeTask(task, true);
+      }
+    }
+  }
+
+  async decodeBitmap(blob: Blob, priority: Priority = 'high'): Promise<ImageBitmap> {
+    await this.initPromise;
+
+    const id = ++this.idCounter;
+    return new Promise<ImageBitmap>((resolve, reject) => {
+      const task: QueueItem = {
+        type: 'DECODE_BITMAP',
+        payload: { blob },
+        resolve: val => resolve(val as ImageBitmap),
+        reject,
+        id,
+      };
+      if (priority === 'high') {
+        this.executeTask(task, false);
+      } else {
+        if (this.activeLowPriorityCount < this.MAX_CONCURRENT_LOW_PRIORITY) {
+          this.activeLowPriorityCount++;
+          this.executeTask(task, true);
         } else {
-            // Fallback if worker failed to init
-            if (task.type === 'DECODE_BITMAP') {
-               // Try main thread decode as backup
-               const { blob } = task.payload;
-               createImageBitmap(blob)
-                   .then(bmp => this.callbacks.get(task.id)?.resolve(bmp))
-                   .catch(err => this.callbacks.get(task.id)?.reject(err))
-                   .finally(() => this.callbacks.delete(task.id));
-            } else {
-               // For synapes, just return empty to prevent crash
-               task.resolve([]); 
-            }
+          this.lowPriorityQueue.push(task);
         }
-    }
+      }
+    });
+  }
 
-    private processQueue() {
-        if (this.activeLowPriorityCount < this.MAX_CONCURRENT_LOW_PRIORITY && this.lowPriorityQueue.length > 0) {
-            const task = this.lowPriorityQueue.shift();
-            if (task) {
-                this.activeLowPriorityCount++;
-                this.executeTask(task, true);
-            }
-        }
-    }
+  async calculateSynapses(nodes: SynapseNode[], hoveredId: string | null): Promise<SynapseLine[]> {
+    await this.initPromise;
+    // Strip heavy objects
+    const lightNodes = nodes.map(n => ({
+      id: n.id,
+      x: n.x,
+      y: n.y,
+      width: n.width,
+      height: n.height,
+      scale: n.scale,
+      tags: n.tags,
+      isStackChild: n.isStackChild,
+      parentId: n.parentId,
+    }));
 
-    async decodeBitmap(blob: Blob, priority: Priority = 'high'): Promise<ImageBitmap> {
-        await this.initPromise;
-        
-        const id = ++this.idCounter;
-        return new Promise((resolve, reject) => {
-            const task: QueueItem = { type: 'DECODE_BITMAP', payload: { blob }, resolve, reject, id };
-            if (priority === 'high') {
-                this.executeTask(task, false);
-            } else {
-                if (this.activeLowPriorityCount < this.MAX_CONCURRENT_LOW_PRIORITY) {
-                    this.activeLowPriorityCount++;
-                    this.executeTask(task, true);
-                } else {
-                    this.lowPriorityQueue.push(task);
-                }
-            }
-        });
-    }
-
-    async calculateSynapses(nodes: any[], hoveredId: string | null): Promise<any[]> {
-        await this.initPromise;
-        // Strip heavy objects
-        const lightNodes = nodes.map((n: any) => ({
-            id: n.id, 
-            x: n.x, 
-            y: n.y, 
-            width: n.width, 
-            height: n.height, 
-            scale: n.scale, 
-            tags: n.tags, 
-            isStackChild: n.isStackChild, 
-            parentId: n.parentId
-        }));
-        
-        const id = ++this.idCounter;
-        return new Promise((resolve, reject) => {
-            const task: QueueItem = { 
-                type: 'CALCULATE_SYNAPSES', 
-                payload: { nodes: lightNodes, hoveredId }, 
-                resolve, reject, id 
-            };
-            this.executeTask(task, false);
-        });
-    }
+    const id = ++this.idCounter;
+    return new Promise<SynapseLine[]>((resolve, reject) => {
+      const task: QueueItem = {
+        type: 'CALCULATE_SYNAPSES',
+        payload: { nodes: lightNodes, hoveredId },
+        resolve: val => resolve(val as SynapseLine[]),
+        reject,
+        id,
+      };
+      this.executeTask(task, false);
+    });
+  }
 }
 
 export const canvasWorker = new CanvasWorkerService();

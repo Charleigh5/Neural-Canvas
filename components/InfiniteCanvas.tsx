@@ -26,6 +26,8 @@ const getCenter = (p1: { x: number; y: number }, p2: { x: number; y: number }) =
 export const InfiniteCanvas: React.FC = () => {
   const images = useStore(useShallow(state => state.images));
   const selectedIds = useStore(useShallow(state => state.selectedIds));
+  const searchResults = useStore(useShallow(state => state.searchResults));
+  const isSemanticSearchActive = useStore(state => state.isSemanticSearchActive);
   const activeTool = useStore(state => state.activeTool);
   const forgeImageId = useStore(state => state.forgeImageId);
   const addImage = useStore(state => state.addImage);
@@ -307,18 +309,16 @@ export const InfiniteCanvas: React.FC = () => {
 
     // GRID LAYOUT CONFIGURATION
     const COLS = 5;
-    const ITEM_WIDTH = 320;
+    const ITEM_SIZE = 300;
     const GAP = 40;
-    // Estimate row height based on width, though actual height depends on image aspect
-    const ROW_ESTIMATE = 320 + GAP;
 
     files.forEach((file: File, i) => {
       const col = i % COLS;
       const row = Math.floor(i / COLS);
 
       // Calculate grid position relative to drop point
-      const offsetX = col * (ITEM_WIDTH + GAP);
-      const offsetY = row * ROW_ESTIMATE;
+      const offsetX = col * (ITEM_SIZE + GAP);
+      const offsetY = row * (ITEM_SIZE + GAP);
 
       const reader = new FileReader();
       reader.onload = ev => {
@@ -326,20 +326,26 @@ export const InfiniteCanvas: React.FC = () => {
         const imgObj = new window.Image();
         imgObj.src = src;
         imgObj.onload = () => {
-          addImage({
-            id: Math.random().toString(36).substring(2, 11),
-            url: src,
-            file,
-            width: ITEM_WIDTH,
-            height: ITEM_WIDTH * (imgObj.height / imgObj.width),
-            x: dropX + offsetX,
-            y: dropY + offsetY,
-            scale: 1,
-            rotation: 0,
-            tags: ['dropped'],
-            analyzed: false,
-            timestamp: Date.now(),
-          });
+          // Uniform Scaling: Scale to fit width into ITEM_SIZE
+          const scale = ITEM_SIZE / imgObj.width;
+
+          addImage(
+            {
+              id: Math.random().toString(36).substring(2, 11),
+              url: src,
+              file,
+              width: imgObj.width, // Keep original dimensions
+              height: imgObj.height, // Keep original dimensions
+              x: dropX + offsetX,
+              y: dropY + offsetY,
+              scale: scale, // Apply uniform scale
+              rotation: 0,
+              tags: ['dropped'],
+              analyzed: false,
+              timestamp: Date.now(),
+            },
+            { skipPhysics: true }
+          );
         };
       };
       reader.readAsDataURL(file);
@@ -390,6 +396,7 @@ export const InfiniteCanvas: React.FC = () => {
               <CanvasNode
                 image={img}
                 isSelected={selectedIds.includes(img.id)}
+                isSearchResult={isSemanticSearchActive ? searchResults.includes(img.id) : undefined}
                 activeTool={activeTool}
                 snapFunc={snapFunc}
                 onSelect={handleSelect}

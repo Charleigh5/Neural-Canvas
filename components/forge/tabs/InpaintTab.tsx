@@ -139,7 +139,7 @@ export const InpaintTab: React.FC<InpaintTabProps> = ({
         <img
           src={image.url}
           className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity pointer-events-none"
-          alt="Source image for inpainting"
+          alt="Source for inpainting"
         />
         <canvas
           ref={canvasRef}

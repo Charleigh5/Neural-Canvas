@@ -208,8 +208,3 @@ export const resolveSpatialCollisions = async (images: ImageAsset[]): Promise<Im
     return images;
   });
 };
-
-export const calculateVisualWeightLegacy = (img: ImageAsset): number => {
-  const sizeFactor = (img.width * img.height) / (640 * 480);
-  return sizeFactor * 1.0;
-};

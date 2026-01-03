@@ -1,0 +1,14 @@
+{
+  "projectContext": {
+    "governanceDocument": "./GEMINI.md",
+    "description": "Neural Canvas - AI Studio for image orchestration"
+  },
+  "rules": [
+    "Always reference GEMINI.md for project architecture and guidelines",
+    "Do NOT use src/ prefixes - root directory contains source code",
+    "Use @google/genai exclusively for AI features",
+    "Prioritize 'Look Amazing' aesthetic for all UI work",
+    "Always explain filesystem modifications before executing"
+  ],
+  "contextFiles": ["GEMINI.md", "_AI_INSTRUCTIONS.md", "docs/BUG_PROTOCOL.md"]
+}

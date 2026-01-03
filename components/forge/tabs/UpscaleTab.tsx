@@ -44,9 +44,9 @@ export const UpscaleTab: React.FC<UpscaleTabProps> = ({
           <span className="uppercase tracking-widest">Detail_Synthesis</span>
           <span className="text-indigo-400 font-black">{Math.round(creativity * 100)}%</span>
         </div>
+        {/* Dynamic CSS variable for slider - required for slider positioning */}
         <div
           className="h-1 bg-slate-800 rounded-full relative"
-          // eslint-disable-next-line react/forbid-dom-props
           style={{ '--slider-pct': `${creativity * 100}%` } as React.CSSProperties}
         >
           <input

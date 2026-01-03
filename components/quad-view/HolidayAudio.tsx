@@ -32,7 +32,7 @@ export const HolidayAudio: React.FC<HolidayAudioProps> = ({ theme, config }) => 
     themeGain.connect(masterBus);
     internalGainRef.current = themeGain;
 
-    const nodes: AudioNode[] = [];
+    const nodes: (AudioNode | { stop: () => void })[] = [];
 
     // --- AUDIO ENGINES ---
 
@@ -121,8 +121,8 @@ export const HolidayAudio: React.FC<HolidayAudioProps> = ({ theme, config }) => 
       }, 4000);
 
       // Clean up intervals on unmount
-      nodes.push({ stop: () => clearInterval(fireTimer) } as any);
-      nodes.push({ stop: () => clearInterval(chimeTimer) } as any);
+      nodes.push({ stop: () => clearInterval(fireTimer) } as { stop: () => void });
+      nodes.push({ stop: () => clearInterval(chimeTimer) } as { stop: () => void });
     }
 
     if (ambience === 'cinematic') {
@@ -146,7 +146,7 @@ export const HolidayAudio: React.FC<HolidayAudioProps> = ({ theme, config }) => 
     return () => {
       nodes.forEach(n => {
         try {
-          if ('stop' in n) (n as any).stop();
+          if ('stop' in n) (n as AudioScheduledSourceNode).stop();
           else n.disconnect();
         } catch {
           // Audio nodes may already be stopped/disconnected - safe to ignore

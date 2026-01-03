@@ -11,7 +11,10 @@ export interface AudioAnalysis {
 
 export const analyzeAudio = async (url: string): Promise<AudioAnalysis> => {
   try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioContext = new (
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext
+    )();
     const response = await fetch(url);
     const arrayBuffer = await response.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
@@ -82,7 +85,10 @@ let masterBus: GainNode | null = null;
 export const audioService = {
   getContext: () => {
     if (!audioContext) {
-      audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContext = new (
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext
+      )();
       masterBus = audioContext.createGain();
       masterBus.gain.value = 0.7;
       masterBus.connect(audioContext.destination);
@@ -93,6 +99,7 @@ export const audioService = {
     if (!masterBus) {
       audioService.getContext(); // Initialize if not done
     }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- Guaranteed by getContext call above
     return masterBus!;
   },
   resume: () => {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStore } from '../store/useStore';
-import { AppMode, BezelTheme, ThemeConfig, PresentationMode } from '../types';
+import { BezelTheme, ThemeConfig, PresentationMode } from '../types';
 import {
   X,
   Play,
@@ -16,8 +16,8 @@ import {
   ArrowUpRight,
   Maximize2,
   MoveVertical,
+  LucideIcon,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 export const HighlightConfigPanel = ({ onClose }: { onClose: () => void }) => {
   const {
@@ -25,8 +25,6 @@ export const HighlightConfigPanel = ({ onClose }: { onClose: () => void }) => {
     setBezelTheme,
     setPlaybackSpeed,
     toggleQuadMode,
-    setMode,
-    togglePlayback,
     playReel,
     setSnowDensity,
     savedThemes,
@@ -34,45 +32,46 @@ export const HighlightConfigPanel = ({ onClose }: { onClose: () => void }) => {
     setPresentationMode,
   } = useStore();
 
-  const themes: { id: BezelTheme; name: string; icon: any; color: string; desc: string }[] = [
-    {
-      id: 'standard',
-      name: 'Standard',
-      icon: Monitor,
-      color: 'text-gray-400',
-      desc: 'Clean, minimalist bezel.',
-    },
-    {
-      id: 'christmas',
-      name: 'Holiday',
-      icon: Gift,
-      color: 'text-red-400',
-      desc: 'Decorations, snow, and warmth.',
-    },
-    {
-      id: 'frost',
-      name: 'Cryo',
-      icon: Snowflake,
-      color: 'text-cyan-300',
-      desc: 'Frozen glass and ice particles.',
-    },
-    {
-      id: 'gold',
-      name: 'Midas',
-      icon: Zap,
-      color: 'text-yellow-400',
-      desc: 'Luxurious gold leaf finish.',
-    },
-    {
-      id: 'candy',
-      name: 'Candy',
-      icon: Palette,
-      color: 'text-pink-400',
-      desc: 'Vibrant pop-art aesthetic.',
-    },
-  ];
+  const themes: { id: BezelTheme; name: string; icon: LucideIcon; color: string; desc: string }[] =
+    [
+      {
+        id: 'standard',
+        name: 'Standard',
+        icon: Monitor,
+        color: 'text-gray-400',
+        desc: 'Clean, minimalist bezel.',
+      },
+      {
+        id: 'christmas',
+        name: 'Holiday',
+        icon: Gift,
+        color: 'text-red-400',
+        desc: 'Decorations, snow, and warmth.',
+      },
+      {
+        id: 'frost',
+        name: 'Cryo',
+        icon: Snowflake,
+        color: 'text-cyan-300',
+        desc: 'Frozen glass and ice particles.',
+      },
+      {
+        id: 'gold',
+        name: 'Midas',
+        icon: Zap,
+        color: 'text-yellow-400',
+        desc: 'Luxurious gold leaf finish.',
+      },
+      {
+        id: 'candy',
+        name: 'Candy',
+        icon: Palette,
+        color: 'text-pink-400',
+        desc: 'Vibrant pop-art aesthetic.',
+      },
+    ];
 
-  const cameraModes: { id: PresentationMode; name: string; icon: any }[] = [
+  const cameraModes: { id: PresentationMode; name: string; icon: LucideIcon }[] = [
     { id: 'flat', name: 'Flat', icon: Monitor },
     { id: 'dutch', name: 'Dutch', icon: ArrowUpRight },
     { id: 'low-angle', name: 'Low', icon: MoveVertical },
@@ -113,7 +112,6 @@ export const HighlightConfigPanel = ({ onClose }: { onClose: () => void }) => {
                             : 'border-[4px] border-slate-800'
                     }
                 `}
-             
             style={{
               ...(playback.bezelTheme === 'custom' && playback.activeThemeConfig
                 ? {
@@ -155,7 +153,6 @@ export const HighlightConfigPanel = ({ onClose }: { onClose: () => void }) => {
               playback.activeThemeConfig?.bezelTexture !== 'none' && (
                 <div
                   className="absolute inset-0 z-[50] pointer-events-none opacity-50 mix-blend-overlay"
-                   
                   style={{ backgroundImage: playback.activeThemeConfig?.bezelTexture }}
                 />
               )}
@@ -198,10 +195,17 @@ export const HighlightConfigPanel = ({ onClose }: { onClose: () => void }) => {
           <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-10">
             {/* 1. Theme Grid */}
             <div className="space-y-4">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              <span
+                id="system-presets-label"
+                className="text-[10px] font-black text-slate-500 uppercase tracking-widest"
+              >
                 System Presets
-              </label>
-              <div className="grid grid-cols-3 gap-3">
+              </span>
+              <div
+                className="grid grid-cols-3 gap-3"
+                role="group"
+                aria-labelledby="system-presets-label"
+              >
                 {themes.map(t => {
                   const isActive = playback.bezelTheme === t.id;
                   return (
@@ -241,10 +245,17 @@ export const HighlightConfigPanel = ({ onClose }: { onClose: () => void }) => {
             {/* 2. Custom Themes */}
             {savedThemes.length > 0 && (
               <div className="space-y-4">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <span
+                  id="my-themes-label"
+                  className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"
+                >
                   <Library size={10} /> My Themes
-                </label>
-                <div className="grid grid-cols-3 gap-3">
+                </span>
+                <div
+                  className="grid grid-cols-3 gap-3"
+                  role="group"
+                  aria-labelledby="my-themes-label"
+                >
                   {savedThemes.map(t => {
                     const isActive =
                       playback.bezelTheme === 'custom' && playback.activeThemeConfig?.id === t.id;
@@ -264,12 +275,10 @@ export const HighlightConfigPanel = ({ onClose }: { onClose: () => void }) => {
                         <div className="flex gap-1 absolute top-3 left-3">
                           <div
                             className="w-2 h-2 rounded-full"
-                             
                             style={{ backgroundColor: t.bezelColor }}
                           />
                           <div
                             className="w-2 h-2 rounded-full"
-                             
                             style={{ backgroundColor: t.accentColor }}
                           />
                         </div>
@@ -293,10 +302,17 @@ export const HighlightConfigPanel = ({ onClose }: { onClose: () => void }) => {
             {/* 3. Camera & View */}
             <div className="grid grid-cols-1 gap-8">
               <div className="space-y-4">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <span
+                  id="camera-perspective-label"
+                  className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"
+                >
                   <Camera size={12} /> Camera Perspective
-                </label>
-                <div className="flex bg-black p-1 rounded-xl border border-white/10 overflow-x-auto">
+                </span>
+                <div
+                  className="flex bg-black p-1 rounded-xl border border-white/10 overflow-x-auto"
+                  role="group"
+                  aria-labelledby="camera-perspective-label"
+                >
                   {cameraModes.map(mode => (
                     <button
                       key={mode.id}
@@ -324,7 +340,10 @@ export const HighlightConfigPanel = ({ onClose }: { onClose: () => void }) => {
             <div className="grid grid-cols-2 gap-8">
               <div className="space-y-4">
                 <div className="flex justify-between">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                  <label
+                    htmlFor="slide-duration-slider"
+                    className="text-[10px] font-black text-slate-500 uppercase tracking-widest"
+                  >
                     Slide Duration
                   </label>
                   <span className="text-[10px] font-mono text-indigo-400 font-bold">
@@ -332,6 +351,7 @@ export const HighlightConfigPanel = ({ onClose }: { onClose: () => void }) => {
                   </span>
                 </div>
                 <input
+                  id="slide-duration-slider"
                   type="range"
                   min="2"
                   max="15"
@@ -343,10 +363,17 @@ export const HighlightConfigPanel = ({ onClose }: { onClose: () => void }) => {
               </div>
 
               <div className="space-y-4">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                <span
+                  id="view-mode-label"
+                  className="text-[10px] font-black text-slate-500 uppercase tracking-widest"
+                >
                   View Mode
-                </label>
-                <div className="flex bg-black p-1 rounded-xl border border-white/10">
+                </span>
+                <div
+                  className="flex bg-black p-1 rounded-xl border border-white/10"
+                  role="group"
+                  aria-labelledby="view-mode-label"
+                >
                   <button
                     onClick={() => {
                       if (playback.quadMode) toggleQuadMode();

@@ -17,7 +17,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import './QuadMonitorView.css';
-import { TransitionRenderer } from './quad-view/TransitionRenderer';
+import { AdaptiveRenderer } from './quad-view/AdaptiveRenderer';
 
 // Note: This file uses inline styles for dynamic CSS variables and runtime-calculated
 // bezel textures that cannot be predetermined in external CSS files.
@@ -47,6 +47,7 @@ import {
 } from './quad-view/HUD';
 import { GiftBoxArray, SleighSquad, YetiObserver } from './quad-view/Entities';
 import { preloadImage } from '../hooks/useImage';
+import { SpectralVisualizer } from './SpectralVisualizer';
 
 export const QuadMonitorView: React.FC = () => {
   const {
@@ -324,7 +325,7 @@ export const QuadMonitorView: React.FC = () => {
             )}
 
           {/* --- THE RENDER ENGINE --- */}
-          <TransitionRenderer
+          <AdaptiveRenderer
             prevAsset={prevAsset}
             currAsset={currentAsset}
             progress={progress} // 0 to 1 loop
@@ -339,6 +340,15 @@ export const QuadMonitorView: React.FC = () => {
           <div className="absolute inset-0 z-20 pointer-events-none">
             <NeuralSentimentScanner theme={bezelTheme} asset={currentAsset} />
             <PolarTelemetry theme={bezelTheme} />
+
+            {/* Real-time Audio Spectrum HUD */}
+            <div className="absolute bottom-10 left-10 w-32 opacity-40">
+              <SpectralVisualizer height={40} mode={2} />
+              <div className="text-[7px] font-mono text-indigo-400 mt-1 uppercase tracking-widest">
+                Audio_Sync_Active
+              </div>
+            </div>
+
             <CaptionOverlay caption={currentAsset.caption} show={playback.showCaptions} />
             <DigitalFrost active={true} />
             <BlizzardProtocol theme={bezelTheme} density={snowDensity} config={activeThemeConfig} />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useStore } from '../store/useStore';
 import {
   authenticateGooglePhotos,
@@ -6,17 +6,7 @@ import {
   getAlbumMedia,
 } from '../services/googlePhotosService';
 import { GoogleAlbum } from '../types';
-import {
-  X,
-  Cloud,
-  Loader,
-  Key,
-  AlertTriangle,
-  ArrowRight,
-  Loader2,
-  HelpCircle,
-  ExternalLink,
-} from 'lucide-react';
+import { X, Cloud, Key, AlertTriangle, Loader2, HelpCircle } from 'lucide-react';
 import { TiltCard } from './ui/TiltCard';
 
 interface GooglePhotosBrowserProps {
@@ -36,12 +26,27 @@ export const GooglePhotosBrowser: React.FC<GooglePhotosBrowserProps> = ({ onClos
   });
   const [showHelp, setShowHelp] = useState(false);
 
+  const loadAlbums = useCallback(async () => {
+    if (!googlePhotosToken) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const fetchedAlbums = await listAlbums(googlePhotosToken);
+      setAlbums(fetchedAlbums);
+    } catch {
+      setError('Failed to fetch albums. Token might be expired.');
+      setGooglePhotosToken('');
+    } finally {
+      setLoading(false);
+    }
+  }, [googlePhotosToken, setGooglePhotosToken]);
+
   // If we have a token, load albums on mount
   useEffect(() => {
     if (googlePhotosToken) {
       loadAlbums();
     }
-  }, [googlePhotosToken]);
+  }, [googlePhotosToken, loadAlbums]);
 
   const handleConnect = async () => {
     if (!clientId.trim()) {
@@ -53,25 +58,11 @@ export const GooglePhotosBrowser: React.FC<GooglePhotosBrowserProps> = ({ onClos
     try {
       const token = await authenticateGooglePhotos(clientId);
       setGooglePhotosToken(token);
-    } catch (err: any) {
-      setError(err.message || 'Authentication failed');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || 'Authentication failed');
       setLoading(false);
       setShowHelp(true); // Auto-show help on error
-    }
-  };
-
-  const loadAlbums = async () => {
-    if (!googlePhotosToken) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const fetchedAlbums = await listAlbums(googlePhotosToken);
-      setAlbums(fetchedAlbums);
-    } catch (err: any) {
-      setError('Failed to fetch albums. Token might be expired.');
-      setGooglePhotosToken(''); // Clear invalid token
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -113,7 +104,7 @@ export const GooglePhotosBrowser: React.FC<GooglePhotosBrowserProps> = ({ onClos
 
       // Done
       onClose();
-    } catch (err) {
+    } catch {
       setError('Failed to import media.');
     } finally {
       setImportingAlbumId(null);
@@ -161,12 +152,12 @@ export const GooglePhotosBrowser: React.FC<GooglePhotosBrowserProps> = ({ onClos
                       (Check http vs https and trailing slashes).
                     </li>
                     <li>
-                      If app is in "Testing" mode, add your email to the <strong>Test Users</strong>{' '}
-                      list in the OAuth Consent Screen.
+                      If app is in &quot;Testing&quot; mode, add your email to the{' '}
+                      <strong>Test Users</strong> list in the OAuth Consent Screen.
                     </li>
                     <li>
-                      Ensure you selected <strong>"Web application"</strong> as the application
-                      type, not Desktop/Android.
+                      Ensure you selected <strong>&quot;Web application&quot;</strong> as the
+                      application type, not Desktop/Android.
                     </li>
                   </ul>
                 </div>
@@ -194,7 +185,10 @@ export const GooglePhotosBrowser: React.FC<GooglePhotosBrowserProps> = ({ onClos
                 {!process.env.GOOGLE_CLIENT_ID && (
                   <div className="space-y-1">
                     <div className="flex justify-between">
-                      <label className="text-[10px] font-mono text-indigo-600 uppercase tracking-widest">
+                      <label
+                        htmlFor="gcp-client-id"
+                        className="text-[10px] font-mono text-indigo-600 uppercase tracking-widest"
+                      >
                         GCP_Client_ID
                       </label>
                       <button
@@ -205,6 +199,7 @@ export const GooglePhotosBrowser: React.FC<GooglePhotosBrowserProps> = ({ onClos
                       </button>
                     </div>
                     <input
+                      id="gcp-client-id"
                       className="w-full bg-black border border-indigo-800 rounded p-2 text-indigo-100 outline-none focus:border-indigo-500 text-xs font-mono"
                       placeholder="Enter your Google Cloud Client ID"
                       value={clientId}

@@ -66,7 +66,7 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
   return (
     <div className="flex-1 flex flex-col bg-[#0a0a0a]">
       {/* Header */}
-      <div className="h-16 flex items-center justify-between px-8 border-b border-white/5 bg-[#050505]">
+      <div className="h-16 flex items-center justify-between px-8 border-b border-white/5 bg-gradient-to-r from-[#050505] to-indigo-950/20 backdrop-blur-3xl">
         <div className="flex items-center gap-3">
           <Sliders size={18} className="text-fuchsia-400" />
           <span className="text-sm font-black text-white uppercase tracking-[0.2em]">
@@ -83,6 +83,7 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
                 onChange={e => setSaveName(e.target.value)}
                 placeholder="Theme Name..."
                 className="bg-transparent border-none text-[10px] text-white px-2 outline-none w-32"
+                // eslint-disable-next-line jsx-a11y/no-autofocus -- Save dialog: focus is expected UX
                 autoFocus
               />
               <button
@@ -103,12 +104,14 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
               </button>
             </div>
           ) : (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => setIsSaving(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600/10 border border-emerald-500/20 text-emerald-400 hover:text-white hover:bg-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
+              className="flex items-center gap-2 px-6 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:text-white hover:bg-emerald-600 rounded-full text-[10px] font-black uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(16,185,129,0.1)] hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]"
             >
               <Save size={14} /> Save Current
-            </button>
+            </motion.button>
           )}
         </div>
       </div>
@@ -124,9 +127,9 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
 
             {/* Bezel Material */}
             <div className="space-y-3">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <Layout size={10} /> Bezel Material
-              </label>
+              </span>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center gap-2 bg-white/5 p-2 rounded-xl border border-white/5">
                   <input
@@ -148,9 +151,9 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
 
             {/* Atmosphere */}
             <div className="space-y-3">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <CloudRain size={10} /> Atmosphere
-              </label>
+              </span>
               <Select
                 value={activeConfig.overlayType || 'none'}
                 onChange={(val: string) =>
@@ -170,9 +173,9 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
             {/* Particle Density */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                   <Wind size={10} /> Particle Density
-                </label>
+                </span>
                 <span className="text-[9px] font-mono text-indigo-400">
                   {activeConfig.particleDensity || 0}%
                 </span>
@@ -197,9 +200,9 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
 
             {/* Audio Ambience */}
             <div className="space-y-3">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <Speaker size={10} /> Audio Ambience
-              </label>
+              </span>
               <Select
                 value={activeConfig.audioAmbience || 'none'}
                 onChange={(val: string) =>
@@ -219,9 +222,9 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
 
             {/* Typography */}
             <div className="space-y-3">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <Type size={10} /> Typography
-              </label>
+              </span>
               <Select
                 value={activeConfig.fontFamily || 'Inter'}
                 onChange={(val: string) => onUpdateConfig({ fontFamily: val })}
@@ -235,9 +238,9 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
 
             {/* Accent Glow */}
             <div className="space-y-3">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <Palette size={10} /> Accent Glow
-              </label>
+              </span>
               <div className="flex items-center gap-4 bg-white/5 p-2 rounded-xl border border-white/5">
                 <input
                   type="color"
@@ -251,21 +254,31 @@ export const ConfigurationLab: React.FC<ConfigurationLabProps> = ({
 
             {/* Narrative Layer */}
             <div className="space-y-3 border-t border-white/5 pt-4">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <Captions size={10} /> Narrative Layer
-              </label>
+              </span>
 
               <div className="flex items-center justify-between bg-white/5 p-2 rounded-xl border border-white/5">
                 <span className="text-[9px] font-mono text-slate-500 pl-2">Show Captions</span>
-                <div
+                {/* 
+                  Per Deque axe-core rule aria-valid-attr-value:
+                  aria-checked accepts only "true", "false", or "mixed" strings.
+                  Using explicit ternary to satisfy static analysis.
+                  Ref: https://dequeuniversity.com/rules/axe/4.11/aria-valid-attr-value
+                */}
+                <button
+                  type="button"
+                  role="switch"
                   onClick={onToggleCaptions}
+                  aria-checked={showCaptions ? 'true' : 'false'}
+                  aria-label="Toggle show captions"
                   className={`w-8 h-4 rounded-full p-0.5 cursor-pointer transition-colors ${showCaptions ? 'bg-indigo-500' : 'bg-slate-700'}`}
                 >
                   <motion.div
                     className="w-3 h-3 bg-white rounded-full shadow-sm"
                     animate={{ x: showCaptions ? 16 : 0 }}
                   />
-                </div>
+                </button>
               </div>
 
               {/* Caption Editor */}

@@ -3,6 +3,7 @@ import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 import react from 'eslint-plugin-react';
+import jsxA11y from 'eslint-plugin-jsx-a11y';
 
 export default tseslint.config(
   { ignores: ['dist', 'eslint.config.js'] },
@@ -19,6 +20,7 @@ export default tseslint.config(
     plugins: {
       'react-hooks': reactHooks,
       react,
+      'jsx-a11y': jsxA11y,
     },
     settings: {
       react: {
@@ -28,6 +30,7 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       ...react.configs.recommended.rules,
+      ...jsxA11y.configs.recommended.rules,
 
       // JSX Runtime
       'react/react-in-jsx-scope': 'off',
@@ -48,8 +51,8 @@ export default tseslint.config(
       'no-unused-expressions': 'warn',
       eqeqeq: ['warn', 'always'],
 
-      // Allow inline styles for dynamic/runtime-calculated animation properties
-      'react/forbid-dom-props': ['warn', { forbid: ['style'] }],
+      // Disable: Inline styles needed for CSS custom properties (--variable) used with Tailwind
+      'react/forbid-dom-props': 'off',
     },
   }
 );

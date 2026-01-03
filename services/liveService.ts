@@ -1,4 +1,4 @@
-import { GoogleGenAI, Modality, Type, FunctionDeclaration } from '@google/genai';
+import { GoogleGenAI, Modality, Type, FunctionDeclaration, LiveServerMessage } from '@google/genai';
 
 /**
  * LIVESERVICE.TS
@@ -101,8 +101,49 @@ export const directorTools: FunctionDeclaration[] = [
   },
 ];
 
+// Typed argument interfaces for each tool
+export interface ManageReelArgs {
+  action: 'SAVE' | 'LOAD' | 'DELETE' | 'CLEAR';
+  name?: string;
+}
+
+export interface AdjustEnvironmentArgs {
+  theme?: 'standard' | 'candy' | 'gold' | 'frost' | 'christmas';
+  speed?: number;
+  mode?: 'sequential' | 'smart-shuffle';
+}
+
+export interface SelectAssetsArgs {
+  description?: string;
+  action: 'SELECT' | 'DESELECT' | 'PURGE';
+}
+
+export interface ModifyAssetsArgs {
+  ids?: string[];
+  brightness?: number;
+  contrast?: number;
+  saturation?: number;
+  blur?: number;
+  hue?: number;
+}
+
+export interface GenerateThemeArgs {
+  prompt: string;
+}
+
+export interface CanvasNavigationArgs {
+  zoom?: number;
+  centerOnId?: string;
+}
+
+// Live session type (from @google/genai)
+type LiveSession = Awaited<ReturnType<GoogleGenAI['live']['connect']>>;
+
+// Tool call result type
+type ToolCallResult = string | number | boolean | Record<string, unknown> | null;
+
 export class LiveDirectorSession {
-  private session: any = null;
+  private session: LiveSession | null = null;
   private inputAudioCtx: AudioContext | null = null;
   private outputAudioCtx: AudioContext | null = null;
   private nextStartTime = 0;
@@ -114,7 +155,7 @@ export class LiveDirectorSession {
       onStatusChange: (
         status: 'idle' | 'connecting' | 'listening' | 'thinking' | 'speaking'
       ) => void;
-      onToolCall: (name: string, args: any) => Promise<any>;
+      onToolCall: (name: string, args: Record<string, unknown>) => Promise<ToolCallResult>;
     }
   ) {}
 
@@ -122,10 +163,14 @@ export class LiveDirectorSession {
     this.callbacks.onStatusChange('connecting');
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
-    this.inputAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({
+    // AudioContext with webkit fallback
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    this.inputAudioCtx = new AudioContextClass({
       sampleRate: AUDIO_IN_RATE,
     });
-    this.outputAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({
+    this.outputAudioCtx = new AudioContextClass({
       sampleRate: AUDIO_OUT_RATE,
     });
 
@@ -143,9 +188,10 @@ export class LiveDirectorSession {
         },
         callbacks: {
           onopen: () => {
+            if (!this.inputAudioCtx) return;
             this.callbacks.onStatusChange('listening');
-            const source = this.inputAudioCtx!.createMediaStreamSource(stream);
-            const processor = this.inputAudioCtx!.createScriptProcessor(4096, 1, 1);
+            const source = this.inputAudioCtx.createMediaStreamSource(stream);
+            const processor = this.inputAudioCtx.createScriptProcessor(4096, 1, 1);
 
             processor.onaudioprocess = e => {
               const inputData = e.inputBuffer.getChannelData(0);
@@ -155,12 +201,12 @@ export class LiveDirectorSession {
             };
 
             source.connect(processor);
-            processor.connect(this.inputAudioCtx!.destination);
+            processor.connect(this.inputAudioCtx.destination);
           },
-          onmessage: async (message: any) => {
+          onmessage: async (message: LiveServerMessage) => {
             // Handle Audio Output
-            const audioData = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
-            if (audioData) {
+            const audioData = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+            if (audioData && typeof audioData === 'string') {
               this.callbacks.onStatusChange('speaking');
               this.playAudio(audioData);
             }
@@ -168,8 +214,12 @@ export class LiveDirectorSession {
             // Handle Tool Calls
             if (message.toolCall) {
               this.callbacks.onStatusChange('thinking');
-              for (const fc of message.toolCall.functionCalls) {
-                const result = await this.callbacks.onToolCall(fc.name, fc.args);
+              for (const fc of message.toolCall.functionCalls ?? []) {
+                if (!fc.name || !fc.id) continue; // Skip malformed function calls
+                const result = await this.callbacks.onToolCall(
+                  fc.name,
+                  (fc.args ?? {}) as Record<string, unknown>
+                );
                 sessionPromise.then(s =>
                   s.sendToolResponse({
                     functionResponses: [{ id: fc.id, name: fc.name, response: { result } }],

@@ -297,7 +297,9 @@ export const AssetsView: React.FC = () => {
                 >
                   <div className="flex items-center gap-2 text-[10px] text-white font-black tracking-widest uppercase truncate">
                     <Tag size={12} className={isSelected ? 'text-indigo-400' : 'text-slate-600'} />
-                    <span className="truncate">{img.tags[0] || 'INDEXING...'}</span>
+                    <span className="truncate">
+                      {img.tags[0] || img.localTags?.[0] || 'INDEXING...'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 text-[9px] text-slate-500 font-mono tracking-tighter">
                     <Clock size={10} className="opacity-50" />

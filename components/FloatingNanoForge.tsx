@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles,
@@ -94,27 +94,41 @@ export const FloatingNanoForge: React.FC<FloatingNanoForgeProps> = ({
     return () => clearTimeout(timer);
   }, [activeTab, inpaint.initMaskCanvases]);
 
-  const handleApplyEdit = async (customPrompt?: string, modeOverride?: 'remix' | 'inpaint') => {
-    const basePrompt = customPrompt || prompt || command;
-    if (!basePrompt.trim() || neuralTemperature > 0) return;
+  const handleApplyEdit = useCallback(
+    async (customPrompt?: string, modeOverride?: 'remix' | 'inpaint') => {
+      const basePrompt = customPrompt || prompt || command;
+      if (!basePrompt.trim() || neuralTemperature > 0) return;
 
-    const currentMode = modeOverride || (activeTab === 'inpaint' ? 'inpaint' : 'remix');
-    let maskBase64: string | undefined = undefined;
+      const currentMode = modeOverride || (activeTab === 'inpaint' ? 'inpaint' : 'remix');
+      let maskBase64: string | undefined = undefined;
 
-    if (currentMode === 'inpaint' && inpaint.maskCanvasRef.current && inpaint.hasMaskData) {
-      maskBase64 = inpaint.maskCanvasRef.current.toDataURL('image/png');
-    }
+      if (currentMode === 'inpaint' && inpaint.maskCanvasRef.current && inpaint.hasMaskData) {
+        maskBase64 = inpaint.maskCanvasRef.current.toDataURL('image/png');
+      }
 
-    let finalPrompt = basePrompt;
-    if (currentMode === 'inpaint' && inpaint.anchor && !maskBase64) {
-      finalPrompt = `INPAINT: Focus on (x:${Math.round(inpaint.anchor.x)}%, y:${Math.round(inpaint.anchor.y)}%). ${basePrompt}`;
-    }
+      let finalPrompt = basePrompt;
+      if (currentMode === 'inpaint' && inpaint.anchor && !maskBase64) {
+        finalPrompt = `INPAINT: Focus on (x:${Math.round(inpaint.anchor.x)}%, y:${Math.round(inpaint.anchor.y)}%). ${basePrompt}`;
+      }
 
-    await performImageEdit(image.id, finalPrompt, 'edit', 'gemini-2.0-flash', maskBase64);
-    setPrompt('');
-    setCommand('');
-    onClose();
-  };
+      await performImageEdit(image.id, finalPrompt, 'edit', 'gemini-2.0-flash', maskBase64);
+      setPrompt('');
+      setCommand('');
+      onClose();
+    },
+    [
+      prompt,
+      command,
+      neuralTemperature,
+      activeTab,
+      inpaint,
+      performImageEdit,
+      image.id,
+      onClose,
+      setPrompt,
+      setCommand,
+    ]
+  );
 
   const handleStyleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -128,45 +142,48 @@ export const FloatingNanoForge: React.FC<FloatingNanoForgeProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const handleCanvasStyleSelect = async (img: ImageAsset) => {
-    try {
-      let blob: Blob | null = null;
-      if (img.url.startsWith('local://')) {
-        const id = img.url.replace('local://', '');
-        const data = await assetDB.get(id);
-        if (data instanceof Blob) blob = data;
-        else if (typeof data === 'string') {
-          setStyleRefBase64(data.startsWith('data:') ? data.split(',')[1] : data);
+  const handleCanvasStyleSelect = useCallback(
+    async (img: ImageAsset) => {
+      try {
+        let blob: Blob | null = null;
+        if (img.url.startsWith('local://')) {
+          const id = img.url.replace('local://', '');
+          const data = await assetDB.get(id);
+          if (data instanceof Blob) blob = data;
+          else if (typeof data === 'string') {
+            setStyleRefBase64(data.startsWith('data:') ? data.split(',')[1] : data);
+            setStyleRefMimeType('image/png');
+            setShowCanvasPicker(false);
+            return;
+          }
+        } else if (img.url.startsWith('data:')) {
+          setStyleRefBase64(img.url.split(',')[1]);
           setStyleRefMimeType('image/png');
           setShowCanvasPicker(false);
           return;
+        } else {
+          // For remote URLs (rare in this app)
+          const res = await fetch(img.url);
+          blob = await res.blob();
         }
-      } else if (img.url.startsWith('data:')) {
-        setStyleRefBase64(img.url.split(',')[1]);
-        setStyleRefMimeType('image/png');
-        setShowCanvasPicker(false);
-        return;
-      } else {
-        // For remote URLs (rare in this app)
-        const res = await fetch(img.url);
-        blob = await res.blob();
-      }
 
-      if (blob) {
-        const currentBlob = blob;
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const res = reader.result as string;
-          setStyleRefBase64(res.split(',')[1]);
-          setStyleRefMimeType(currentBlob.type);
-          setShowCanvasPicker(false);
-        };
-        reader.readAsDataURL(blob);
+        if (blob) {
+          const currentBlob = blob;
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const res = reader.result as string;
+            setStyleRefBase64(res.split(',')[1]);
+            setStyleRefMimeType(currentBlob.type);
+            setShowCanvasPicker(false);
+          };
+          reader.readAsDataURL(blob);
+        }
+      } catch (e: unknown) {
+        console.error('Canvas Style Select Failed', e);
       }
-    } catch (e) {
-      console.error('Canvas Style Select Failed', e);
-    }
-  };
+    },
+    [setStyleRefBase64, setStyleRefMimeType, setShowCanvasPicker]
+  );
 
   const handleApplyStyle = async (specificPrompt?: string) => {
     const base = specificPrompt || prompt || command;

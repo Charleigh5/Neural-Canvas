@@ -5,12 +5,18 @@ import { QuadMonitorView } from './components/QuadMonitorView';
 import { HomeScreen } from './components/HomeScreen';
 import { AssetsView } from './components/AssetsView';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { RateLimitBanner } from './components/RateLimitBanner';
 import { useStore } from './store/useStore';
 import { AppMode } from './types';
 import { AudioController } from './components/AudioController';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { AuthProvider } from './services/authContext';
 
 export default function App() {
   const { mode, playback, nextSlide, hydrateFromDB } = useStore();
+
+  // Global keyboard shortcuts
+  useKeyboardShortcuts();
 
   // Hydrate persisted data from IndexedDB on mount
   useEffect(() => {
@@ -40,17 +46,20 @@ export default function App() {
   ]);
 
   return (
-    <ErrorBoundary>
-      <div className="w-screen h-screen bg-black text-white overflow-hidden font-sans">
-        <AudioController />
-        <OrbitalFrame>
-          {mode === AppMode.HOME && <HomeScreen />}
-          {mode === AppMode.CANVAS && <InfiniteCanvas />}
-          {mode === AppMode.STUDIO && <InfiniteCanvas />}
-          {mode === AppMode.ASSETS && <AssetsView />}
-          {mode === AppMode.PLAYER && <QuadMonitorView />}
-        </OrbitalFrame>
-      </div>
-    </ErrorBoundary>
+    <AuthProvider>
+      <ErrorBoundary>
+        <div className="w-screen h-screen bg-black text-white overflow-hidden font-sans">
+          <RateLimitBanner />
+          <AudioController />
+          <OrbitalFrame>
+            {mode === AppMode.HOME && <HomeScreen />}
+            {mode === AppMode.CANVAS && <InfiniteCanvas />}
+            {mode === AppMode.STUDIO && <InfiniteCanvas />}
+            {mode === AppMode.ASSETS && <AssetsView />}
+            {mode === AppMode.PLAYER && <QuadMonitorView />}
+          </OrbitalFrame>
+        </div>
+      </ErrorBoundary>
+    </AuthProvider>
   );
 }

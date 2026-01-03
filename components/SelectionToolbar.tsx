@@ -1,7 +1,19 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store/useStore';
-import { Plus, Trash2, X, Film, Layers, Tag, BrainCircuit, Crop, Wand2, Check } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  X,
+  Film,
+  Layers,
+  Tag,
+  BrainCircuit,
+  Crop,
+  Wand2,
+  Check,
+  Cuboid,
+} from 'lucide-react';
 
 export const SelectionToolbar: React.FC = () => {
   const {
@@ -14,6 +26,7 @@ export const SelectionToolbar: React.FC = () => {
     batchAnalyze,
     batchSmartCrop,
     batchEdit,
+    batchGenerateDepthMaps,
   } = useStore();
 
   const [showBatchMenu, setShowBatchMenu] = useState(false);
@@ -72,7 +85,7 @@ export const SelectionToolbar: React.FC = () => {
               className="bg-black/90 backdrop-blur-xl border border-white/10 rounded-2xl p-2 mb-2 shadow-2xl min-w-[300px]"
             >
               {batchMode === 'none' ? (
-                <div className="grid grid-cols-4 gap-1">
+                <div className="grid grid-cols-5 gap-1">
                   <BatchActionBtn icon={Tag} label="Tag" onClick={() => setBatchMode('tag')} />
                   <BatchActionBtn
                     icon={BrainCircuit}
@@ -90,6 +103,14 @@ export const SelectionToolbar: React.FC = () => {
                       setShowBatchMenu(false);
                     }}
                   />
+                  <BatchActionBtn
+                    icon={Cuboid}
+                    label="Depth"
+                    onClick={() => {
+                      batchGenerateDepthMaps(selectedIds);
+                      setShowBatchMenu(false);
+                    }}
+                  />
                   <BatchActionBtn icon={Wand2} label="Remix" onClick={() => setBatchMode('edit')} />
                 </div>
               ) : (
@@ -102,7 +123,6 @@ export const SelectionToolbar: React.FC = () => {
                     <X size={14} />
                   </button>
                   <input
-                    autoFocus
                     value={inputValue}
                     onChange={e => setInputValue(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && executeBatch()}

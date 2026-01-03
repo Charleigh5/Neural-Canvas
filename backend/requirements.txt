@@ -1,0 +1,42 @@
+# Core
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+gunicorn>=23.0.0
+
+# Database
+sqlalchemy[asyncio]>=2.0.36
+asyncpg>=0.30.0
+alembic>=1.14.0
+
+# Auth
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+bcrypt>=4.0.0,<5.0.0  # Pinned: passlib 1.7.4 incompatible with bcrypt 5.0+
+python-multipart>=0.0.17
+
+# Validation
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+email-validator>=2.2.0
+
+# Utils
+python-dotenv>=1.0.1
+
+# Image Processing & AI
+Pillow>=10.0.0
+google-genai>=1.0.0
+
+# Cloud Storage (S3)
+boto3>=1.35.0
+
+# Task Queue (Celery + Redis)
+celery[redis]>=5.4.0
+redis>=5.0.0
+
+# Dev
+pytest>=8.3.0
+pytest-asyncio>=0.24.0
+httpx>=0.28.0
+pytest-mock>=3.14.0
+aiosqlite>=0.20.0
+

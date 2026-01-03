@@ -113,7 +113,12 @@ export const SequencerItem = React.memo(
         className="relative group shrink-0 h-full flex flex-col justify-end pb-2 z-10"
         dragListener={false}
         dragControls={dragControls}
-        whileDrag={{ scale: 1.05, zIndex: 100, cursor: 'grabbing' }}
+        whileDrag={{
+          scale: 1.05,
+          zIndex: 100,
+          cursor: 'grabbing',
+          boxShadow: '0 0 0 2px #6366f1, 0 10px 40px rgba(0,0,0,0.5)',
+        }}
         style={{ width: ITEM_WIDTH }}
       >
         <div
@@ -208,7 +213,12 @@ export const SequencerItem = React.memo(
         <AnimatePresence>
           {isMenuOpen && isVisible && (
             <>
-              <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
+              <button
+                type="button"
+                className="fixed inset-0 z-40 bg-transparent border-none cursor-default"
+                onClick={() => setIsMenuOpen(false)}
+                aria-label="Close menu"
+              />
               <motion.div
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}

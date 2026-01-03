@@ -101,7 +101,6 @@ export const SaveReelModal: React.FC<SaveReelModalProps> = ({ isOpen, onClose })
                 </button>
               </div>
               <input
-                autoFocus
                 type="text"
                 placeholder="Enter unique designation..."
                 value={newReelName}

@@ -8,8 +8,24 @@ const TEXT_MODEL = 'gemini-2.0-flash';
 const VISION_MODEL = 'gemini-2.0-flash';
 const REASONING_MODEL = 'gemini-2.0-flash';
 
+// --- UTILS ---
+
+/**
+ * Robust JSON parser that handles Markdown code fences.
+ */
+const safeParseJson = <T>(text: string): T | null => {
+  try {
+    // 1. Clean Markdown code blocks (```json ... ``` or ``` ...)
+    const cleaned = text.replace(/```(?:json)?\s*([\s\S]*?)```/g, '$1').trim();
+    return JSON.parse(cleaned);
+  } catch (e) {
+    console.error('[GEMINI] JSON Parse Error:', e, 'Raw text:', text);
+    return null;
+  }
+};
+
 // --- NEURAL GOVERNOR SYSTEM ---
-// Centralized traffic controller for Gemini API
+// Centralized traffic controller for Gemini API with adaptive rate limiting
 type NeuralTask<T = unknown> = () => Promise<T>;
 
 interface QueueItem {
@@ -17,6 +33,7 @@ interface QueueItem {
   resolve: (val: unknown) => void;
   reject: (err: unknown) => void;
   priority: 'high' | 'low';
+  retryCount: number; // Track retry attempts per request
 }
 
 class NeuralGovernor {
@@ -24,10 +41,44 @@ class NeuralGovernor {
   private isProcessing = false;
   private quarantineUntil = 0;
   private lastRequestTime = 0;
-  private minDelay = 1000 / 15; // Max 15 calls per second (~66ms)
   private activeKeys = new Set<string>(); // Tracks in-flight IDs to enforce 1-per-asset limit
 
-  public onLog: (msg: string, type: 'info' | 'warn' | 'error') => void = () => {};
+  // --- ADAPTIVE THROTTLING CONFIG ---
+  private maxConcurrent = 3; // Max simultaneous requests
+  private activeRequests = 0; // Current in-flight count
+  private currentRpm = 10; // Requests per minute (adaptive, conservative default)
+  private readonly minRpm = 5; // Floor after 429
+  private readonly maxRpm = 30; // Ceiling for auto-recovery (conservative for free tier)
+  private readonly rpmRecoveryRate = 5; // RPM increase per success burst
+  private successStreak = 0; // Used to slowly increase RPM
+
+  // --- EXPONENTIAL BACKOFF CONFIG (per Perplexity research) ---
+  private readonly maxRetries = 5; // Max retry attempts before surfacing error
+  private readonly initialDelayMs = 1000; // First retry delay
+  private readonly maxDelayMs = 30000; // Cap at 30 seconds
+  private readonly jitterFactor = 0.2; // 20% jitter to prevent thundering herd
+
+  public onLog: (msg: string, type: 'info' | 'warn' | 'error' | 'success') => void = () => {};
+
+  /**
+   * Calculate delay between requests based on current RPM limit.
+   */
+  private calculateDelay(): number {
+    // RPM -> delay in ms: 15 RPM = 4000ms, 60 RPM = 1000ms
+    return Math.ceil(60000 / this.currentRpm);
+  }
+
+  /**
+   * Calculate exponential backoff delay with jitter for retries.
+   * Formula: min(maxDelay, initialDelay * 2^retryCount) ± jitter
+   */
+  private calculateBackoff(retryCount: number): number {
+    const exponentialDelay = this.initialDelayMs * Math.pow(2, retryCount);
+    const cappedDelay = Math.min(exponentialDelay, this.maxDelayMs);
+    // Add jitter: ±jitterFactor% to prevent thundering herd
+    const jitter = cappedDelay * this.jitterFactor * (Math.random() * 2 - 1);
+    return Math.floor(cappedDelay + jitter);
+  }
 
   /**
    * Enqueues a task for execution.
@@ -60,6 +111,7 @@ class NeuralGovernor {
         resolve: resolve as (val: unknown) => void,
         reject: reject as (err: unknown) => void,
         priority,
+        retryCount: 0, // Initialize retry counter
       };
 
       if (priority === 'high') {
@@ -79,32 +131,43 @@ class NeuralGovernor {
     while (this.queue.length > 0) {
       const now = Date.now();
 
-      // 2. Quarantine Check (429 Backoff)
+      // 1. Quarantine Check (429 Backoff)
       if (now < this.quarantineUntil) {
         const wait = Math.ceil((this.quarantineUntil - now) / 1000);
-        // Log only occasionally to avoid spam
-        if (Math.random() < 0.05) this.onLog(`[QUOTA] Cooling down... ${wait}s`, 'warn');
+        if (wait % 10 === 0) this.onLog(`[QUOTA] Cooling down... ${wait}s remaining`, 'warn');
         await new Promise(r => setTimeout(r, 1000));
         continue;
       }
 
-      // 3. Rate Limit Pacing (Token Bucket Simulation)
+      // 2. Concurrency Gate
+      if (this.activeRequests >= this.maxConcurrent) {
+        await new Promise(r => setTimeout(r, 100)); // Brief wait
+        continue;
+      }
+
+      // 3. Rate Limit Pacing (Adaptive RPM)
+      const minDelay = this.calculateDelay();
       const timeSinceLast = now - this.lastRequestTime;
-      if (timeSinceLast < this.minDelay) {
-        await new Promise(r => setTimeout(r, this.minDelay - timeSinceLast));
+      if (timeSinceLast < minDelay) {
+        await new Promise(r => setTimeout(r, minDelay - timeSinceLast));
       }
 
       const item = this.queue.shift();
       if (!item) break;
 
       this.lastRequestTime = Date.now();
+      this.activeRequests++;
 
-      // 4. Execution (Fire and Forget to maintain throughput)
-      // We do NOT await here, or we'd be limited to 1 request per latency cycle (e.g. 1 req / 2 sec)
+      // 4. Execution (Fire and Forget to maintain throughput with concurrency)
       item
         .task()
-        .then(item.resolve)
+        .then(result => {
+          this.activeRequests--;
+          this.handleSuccess();
+          item.resolve(result);
+        })
         .catch((error: unknown) => {
+          this.activeRequests--;
           const msg = error instanceof Error ? error.message : String(error);
           const isQuota =
             msg.includes('429') ||
@@ -112,9 +175,35 @@ class NeuralGovernor {
             msg.includes('Quota exceeded');
 
           if (isQuota) {
+            item.retryCount++;
+
+            // Check if max retries exceeded
+            if (item.retryCount > this.maxRetries) {
+              this.onLog(
+                `[FATAL] Max retries (${this.maxRetries}) exceeded. Surfacing error to user.`,
+                'error'
+              );
+              item.reject(
+                new Error('API rate limit exceeded after multiple retries. Please try again later.')
+              );
+              return;
+            }
+
+            // Calculate backoff with jitter
+            const backoffMs = this.calculateBackoff(item.retryCount);
+            this.onLog(
+              `[RETRY] Attempt ${item.retryCount}/${this.maxRetries} after ${Math.round(backoffMs / 1000)}s backoff`,
+              'warn'
+            );
+
+            // Apply global quota handling
             this.handleQuotaError();
-            // Re-queue at the front (High Priority) to retry after cooldown
-            this.queue.unshift(item);
+
+            // Schedule retry with exponential backoff
+            setTimeout(() => {
+              this.queue.unshift(item);
+              this.process();
+            }, backoffMs);
           } else {
             this.onLog(`[ERROR] Gemini API: ${msg}`, 'error');
             item.reject(error);
@@ -125,14 +214,46 @@ class NeuralGovernor {
     this.isProcessing = false;
   }
 
+  private handleSuccess() {
+    this.successStreak++;
+    // Every 10 successful requests, try to gently increase RPM
+    if (this.successStreak >= 10 && this.currentRpm < this.maxRpm) {
+      this.currentRpm = Math.min(this.maxRpm, this.currentRpm + this.rpmRecoveryRate);
+      this.successStreak = 0;
+      this.onLog(`[GOVERNOR] Increasing rate to ${this.currentRpm} RPM`, 'info');
+    }
+  }
+
   private handleQuotaError() {
-    // Extend quarantine if not already set far enough
+    // Drop RPM significantly
+    this.currentRpm = Math.max(this.minRpm, Math.floor(this.currentRpm / 2));
+    this.successStreak = 0;
+
+    // Extend quarantine
     const cooldown = 60000; // 60s
     const target = Date.now() + cooldown;
     if (target > this.quarantineUntil) {
       this.quarantineUntil = target;
-      this.onLog(`[CRITICAL] 429 Quota Hit. Pausing for 60s.`, 'error');
+      this.onLog(
+        `[CRITICAL] 429 Quota Hit. Dropping to ${this.currentRpm} RPM. Pausing 60s.`,
+        'error'
+      );
     }
+  }
+
+  /**
+   * Get current rate limiter state for UI consumption.
+   * Exposes minimal, actionable metrics for graceful degradation UI.
+   */
+  getQuarantineInfo(): { isQuarantined: boolean; remainingMs: number; currentRpm: number } {
+    const now = Date.now();
+    const isQuarantined = now < this.quarantineUntil;
+    const remainingMs = isQuarantined ? this.quarantineUntil - now : 0;
+    return {
+      isQuarantined,
+      remainingMs,
+      currentRpm: this.currentRpm,
+    };
   }
 }
 
@@ -205,7 +326,7 @@ export const analyzeImage = async (
           },
         },
       });
-      return JSON.parse(response.text || '{}');
+      return safeParseJson<Partial<ImageAsset>>(response.text || '{}') || {};
     },
     'low',
     assetId
@@ -311,7 +432,7 @@ export const generateThemeConfig = async (prompt: string): Promise<ThemeConfig |
         },
       },
     });
-    return JSON.parse(response.text || 'null');
+    return safeParseJson<ThemeConfig>(response.text || 'null');
   }, 'high');
 };
 
@@ -369,7 +490,7 @@ export const curateReelSequence = async (images: ImageAsset[]): Promise<ReelCura
           },
         },
       });
-      return JSON.parse(response.text || 'null');
+      return safeParseJson<ReelCuration>(response.text || 'null');
     },
     'high',
     'reel_orchestration'
@@ -393,8 +514,8 @@ export const suggestNextImage = async (
       },
       config: { responseMimeType: 'application/json' },
     });
-    const data = JSON.parse(response.text || '{}');
-    return data.id || null;
+    const data = safeParseJson<{ id?: string }>(response.text || '{}');
+    return data?.id || null;
   }, 'low');
 };
 
@@ -418,4 +539,100 @@ export const refinePrompt = async (original: string): Promise<string | null> => 
     });
     return response.text?.trim() || null;
   }, 'high');
+};
+
+/**
+ * Generate an ambient 16:9 background that matches the mood and colors of the source image.
+ * @param colors Array of dominant hex colors from the image
+ * @param mood Description of the image mood/style (e.g., "warm sunset", "festive holiday")
+ * @param tags Optional tags from image analysis
+ * @returns Base64 encoded image data or null on failure
+ */
+export const generateAmbientBackground = async (
+  colors: string[],
+  mood: string,
+  tags?: string[]
+): Promise<string | null> => {
+  return governor.enqueue(async () => {
+    const colorDescription =
+      colors.length > 0
+        ? `using these dominant colors: ${colors.join(', ')}`
+        : 'with a harmonious color palette';
+
+    const tagContext = tags && tags.length > 0 ? `inspired by: ${tags.slice(0, 5).join(', ')}` : '';
+
+    const prompt = `Generate a beautiful abstract 16:9 cinematic background. 
+Style: ${mood}. ${colorDescription}. ${tagContext}.
+Requirements:
+- Ultra-wide 16:9 aspect ratio
+- Soft, blurred, dreamlike quality
+- No recognizable objects or faces
+- Suitable as a backdrop behind photos
+- Elegant gradients, bokeh, or atmospheric effects
+- Professional quality, high resolution feel`;
+
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: 'gemini-2.0-flash-exp-image-generation',
+      contents: { parts: [{ text: prompt }] },
+      config: {
+        responseModalities: ['Text', 'Image'],
+      },
+    });
+
+    const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+    return part?.inlineData?.data || null;
+  }, 'high');
+};
+
+/**
+ * Analyze image to extract mood and color context for ambient generation
+ */
+export const extractAmbientContext = async (
+  base64: string,
+  assetId?: string
+): Promise<{ mood: string; colors: string[]; style: string } | null> => {
+  return governor.enqueue(
+    async () => {
+      const response: GenerateContentResponse = await ai.models.generateContent({
+        model: VISION_MODEL,
+        contents: {
+          parts: [
+            { inlineData: { mimeType: 'image/jpeg', data: base64 } },
+            {
+              text: `Analyze this image for ambient background generation. Extract mood, colors, and style.`,
+            },
+          ],
+        },
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              mood: {
+                type: Type.STRING,
+                description:
+                  'Overall mood/atmosphere (e.g., "warm sunset glow", "cozy winter evening", "vibrant celebration")',
+              },
+              colors: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+                description: 'Array of 3-5 dominant hex color codes',
+              },
+              style: {
+                type: Type.STRING,
+                description:
+                  'Visual style suitable for background (e.g., "soft bokeh", "gradient wash", "atmospheric fog")',
+              },
+            },
+            required: ['mood', 'colors', 'style'],
+          },
+        },
+      });
+      return safeParseJson<{ mood: string; colors: string[]; style: string }>(
+        response.text || 'null'
+      );
+    },
+    'high',
+    assetId ? `${assetId}_ambient` : undefined
+  );
 };

@@ -2,11 +2,13 @@ import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Group, Image as KonvaImage, Rect, Text } from 'react-konva';
 import Konva from 'konva';
 import { useImage } from '../../hooks/useImage';
+import { useSelectionPulse } from '../../hooks/useSelectionPulse';
 import { ImageAsset } from '../../types';
 
 interface CanvasNodeProps {
   image: ImageAsset;
   isSelected: boolean;
+  isSearchResult?: boolean;
   activeTool: 'select' | 'move' | 'erase' | 'pointer' | 'hand' | 'draw';
   onSelect: (id: string, multi: boolean) => void;
   onDblClick: (img: ImageAsset, pos: { x: number; y: number }) => void;
@@ -15,14 +17,16 @@ interface CanvasNodeProps {
 }
 
 export const CanvasNode: React.FC<CanvasNodeProps> = React.memo(
-  ({ image, isSelected, activeTool, onSelect, onDblClick, onDragEnd, snapFunc }) => {
+  ({ image, isSelected, isSearchResult, activeTool, onSelect, onDblClick, onDragEnd, snapFunc }) => {
     const [img, status] = useImage(
       !image || image.isStackChild || image.mediaType === 'video' ? undefined : image.url
     );
     const [isHovered, setIsHovered] = useState(false);
     const groupRef = useRef<Konva.Group>(null);
-    const glowRef = useRef<Konva.Rect>(null);
     const imageNodeRef = useRef<Konva.Image>(null);
+
+    // Shared selection pulse animation (single RAF loop for all nodes)
+    const pulseOpacity = useSelectionPulse(isSelected || !!isSearchResult);
 
     // Apply Filters & Cache
     useEffect(() => {
@@ -42,20 +46,6 @@ export const CanvasNode: React.FC<CanvasNodeProps> = React.memo(
       image?.width,
       image?.height,
     ]);
-
-    // Selection animation pulse effect
-    useEffect(() => {
-      if (isSelected && glowRef.current) {
-        const node = glowRef.current;
-        const anim = new Konva.Animation(frame => {
-          node.opacity(0.3 + Math.sin((frame?.time || 0) / 400) * 0.2);
-        }, node.getLayer());
-        anim.start();
-        return () => {
-          anim.stop();
-        };
-      }
-    }, [isSelected]);
 
     // Filter Assembly
     const filters = useMemo(() => {
@@ -100,6 +90,7 @@ export const CanvasNode: React.FC<CanvasNodeProps> = React.memo(
         onDragEnd={e => onDragEnd(image.id, { x: e.target.x(), y: e.target.y() })}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        opacity={isSearchResult === false ? 0.3 : 1} // Dim non-matches if explicitly false (tri-state logic used in parent)
       >
         {/* INNER ROTATOR GROUP - Handles rotation around center */}
         <Group
@@ -110,9 +101,8 @@ export const CanvasNode: React.FC<CanvasNodeProps> = React.memo(
           rotation={image.rotation || 0}
         >
           {/* 1. SELECTION GLOW (PULSING) */}
-          {isSelected && (
+          {(isSelected || isSearchResult) && (
             <Rect
-              ref={glowRef}
               x={-15}
               y={-15}
               width={image.width + 30}
@@ -121,9 +111,14 @@ export const CanvasNode: React.FC<CanvasNodeProps> = React.memo(
               fillRadialGradientStartRadius={0}
               fillRadialGradientEndPoint={{ x: image.width / 2 + 15, y: image.height / 2 + 15 }}
               fillRadialGradientEndRadius={image.width}
-              fillRadialGradientColorStops={[0, 'rgba(99, 102, 241, 0.4)', 1, 'transparent']}
+              fillRadialGradientColorStops={[
+                0, 
+                isSearchResult ? 'rgba(16, 185, 129, 0.4)' : 'rgba(99, 102, 241, 0.4)', // Emerald for search, Indigo for select
+                1, 
+                'transparent'
+              ]}
               cornerRadius={12}
-              opacity={0.5}
+              opacity={pulseOpacity}
             />
           )}
 
@@ -135,11 +130,17 @@ export const CanvasNode: React.FC<CanvasNodeProps> = React.memo(
             height={image.height + 12}
             fill="#000"
             stroke={
-              isSelected ? '#6366f1' : isHovered ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.1)'
+              isSearchResult
+                ? '#10b981' // Emerald-500
+                : isSelected
+                  ? '#6366f1' // Indigo-500
+                  : isHovered
+                    ? 'rgba(255,255,255,0.4)'
+                    : 'rgba(255,255,255,0.1)'
             }
-            strokeWidth={isSelected ? 3 : 1}
-            shadowBlur={isSelected ? 15 : 0}
-            shadowColor="#6366f1"
+            strokeWidth={isSearchResult || isSelected ? 3 : 1}
+            shadowBlur={isSelected || isSearchResult ? 15 : 0}
+            shadowColor={isSearchResult ? '#10b981' : '#6366f1'}
             cornerRadius={10}
           />
 

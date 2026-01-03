@@ -285,9 +285,9 @@ export const StyleTab: React.FC<StyleTabProps> = ({
                   {Math.round(styleIntensity * 100)}%
                 </span>
               </div>
+              {/* CSS variable for slider track - dynamic style required for slider positioning */}
               <div
                 className="h-1 bg-white/10 rounded-full relative cursor-pointer group"
-                // eslint-disable-next-line react/forbid-dom-props
                 style={
                   {
                     '--slider-pct': `${((styleIntensity - 0.1) / (1.0 - 0.1)) * 100}%`,

@@ -1,21 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useStore } from '../store/useStore';
-import {
-  Play,
-  Pause,
-  Film,
-  Sparkles,
-  UploadCloud,
-  Download,
-  Plus,
-  Save,
-  FolderOpen,
-  Cloud,
-  Eye,
-  Palette,
-  Wand2,
-  Loader2,
-} from 'lucide-react';
+import { Film, UploadCloud, Plus } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { GooglePhotosBrowser } from './GooglePhotosBrowser';
 import { ThemePreviewModal } from './ThemePreviewModal';
@@ -24,16 +9,13 @@ import { SequencerItem } from './sequencer/SequencerItem';
 import { useSequencerDrag } from '../hooks/useSequencerDrag';
 import { SaveReelModal } from './sequencer/SaveReelModal';
 import { ReelLibrary } from './sequencer/ReelLibrary';
+import { SequencerHeader } from './sequencer/SequencerHeader';
 
 // Constants for Virtualization
 const ITEM_WIDTH = 192; // w-48
 const ITEM_GAP = 16; // gap-4
 const ITEM_STRIDE = ITEM_WIDTH + ITEM_GAP;
 const OVERSCAN = 5; // Number of items to render outside viewport
-
-import { Music } from 'lucide-react';
-import { AudioWaveform } from './AudioWaveform';
-import { analyzeAudio } from '../services/audioService';
 
 export const StudioSequencer = () => {
   const {
@@ -175,172 +157,24 @@ export const StudioSequencer = () => {
       </AnimatePresence>
 
       {/* HEADER */}
-      <div className="h-14 border-b border-indigo-500/10 flex items-center justify-between px-8 bg-black/40 backdrop-blur-3xl shrink-0 z-20 relative">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-indigo-400 animate-pulse" />
-            <span className="text-[11px] font-black text-white tracking-[0.4em] uppercase">
-              Aurora_Sequencer
-            </span>
-          </div>
-
-          <div className="flex items-center bg-white/5 rounded-full p-1 px-3 gap-3 border border-white/5">
-            <button
-              onClick={togglePlayback}
-              className="text-indigo-400 hover:text-white transition-colors"
-            >
-              {playback.isPlaying ? <Pause size={16} /> : <Play size={16} />}
-            </button>
-            <span className="text-[10px] font-mono text-slate-500 tracking-widest">
-              {localReel.length} PACKETS
-            </span>
-          </div>
-
-          <div className="h-6 w-px bg-white/10" />
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsLibraryOpen(!isLibraryOpen)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
-                isLibraryOpen ? 'bg-indigo-600 text-white' : 'hover:bg-white/5 text-slate-400'
-              }`}
-            >
-              <FolderOpen size={14} />{' '}
-              <span className="text-[9px] font-black uppercase tracking-wider">Library</span>
-            </button>
-            <button
-              onClick={() => setShowGooglePhotos(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 text-slate-400 transition-all"
-            >
-              <Cloud size={14} />{' '}
-              <span className="text-[9px] font-black uppercase tracking-wider">Cloud</span>
-            </button>
-            <button
-              onClick={() => setIsSaving(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 text-slate-400 transition-all"
-              disabled={localReel.length === 0}
-            >
-              <Save size={14} />{' '}
-              <span className="text-[9px] font-black uppercase tracking-wider">Save</span>
-            </button>
-            <button
-              onClick={() => setShowExportModal(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 text-slate-400 transition-all"
-              disabled={localReel.length === 0}
-            >
-              <Download size={14} />{' '}
-              <span className="text-[9px] font-black uppercase tracking-wider">Export</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4">
-          {/* AUDIO CONTROLS */}
-          <div className="flex items-center gap-2 bg-white/5 rounded-full p-1 border border-white/5 pr-4">
-            <label
-              className="cursor-pointer hover:text-indigo-400 text-slate-500 transition-colors p-1.5"
-              title="Upload Audio Track"
-            >
-              <Music size={14} />
-              <input
-                type="file"
-                accept="audio/*"
-                className="hidden"
-                aria-label="Upload Audio Track"
-                onChange={async e => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const url = URL.createObjectURL(file);
-                    useStore.getState().setAudioSrc(url);
-                    // Analyze
-                    const analysis = await analyzeAudio(url);
-                    useStore.getState().setBeatMarkers(analysis.peaks);
-                    useStore
-                      .getState()
-                      .addCouncilLog(`Audio Loaded: ${Math.round(analysis.bpm)} BPM`, 'success');
-                  }
-                }}
-              />
-            </label>
-            {playback.audioSrc && (
-              <>
-                <button
-                  onClick={() => useStore.getState().setIsAudioPlaying(!playback.isAudioPlaying)}
-                  className={playback.isAudioPlaying ? 'text-indigo-400' : 'text-slate-500'}
-                  aria-label={playback.isAudioPlaying ? 'Pause Audio' : 'Play Audio'}
-                  title={playback.isAudioPlaying ? 'Pause Audio' : 'Play Audio'}
-                >
-                  {playback.isAudioPlaying ? <Pause size={14} /> : <Play size={14} />}
-                </button>
-                <div className="h-4 w-px bg-white/10 mx-1" />
-                <button
-                  onClick={() => useStore.getState().setBeatSyncMode(!playback.beatSyncMode)}
-                  className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
-                    playback.beatSyncMode
-                      ? 'bg-indigo-500 text-white'
-                      : 'text-slate-500 hover:text-indigo-400'
-                  }`}
-                >
-                  Beat_Sync
-                </button>
-                {/* Mini Waveform */}
-                <div className="w-24 h-6 opacity-50">
-                  <AudioWaveform
-                    audioSrc={playback.audioSrc}
-                    height={24}
-                    waveColor="#818cf8"
-                    progressColor="#c7d2fe"
-                  />
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* NEW: AI DIRECTOR BUTTON */}
-          <button
-            onClick={() => orchestrateReel()}
-            disabled={localReel.length < 2 || neuralTemperature > 0}
-            className="flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-indigo-500/20 to-fuchsia-500/20 border border-indigo-500/30 rounded-full text-indigo-300 hover:text-white transition-all disabled:opacity-50"
-          >
-            {neuralTemperature > 0 ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <Wand2 size={14} />
-            )}
-            <span className="text-[9px] font-black tracking-wider uppercase">AI Director</span>
-          </button>
-
-          <button
-            onClick={() => toggleUiPanel('isThemeStudioOpen')}
-            className="flex items-center gap-2 px-4 py-1.5 bg-white/5 hover:bg-white/10 text-indigo-300 rounded-full border border-indigo-500/20 transition-all"
-          >
-            <Palette size={14} />
-            <span className="text-[9px] font-black tracking-wider uppercase">Themes</span>
-          </button>
-          <button
-            onClick={() => setShowPreview(true)}
-            className="flex items-center gap-2 px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded-full border border-cyan-500/30 transition-all"
-            disabled={localReel.length === 0}
-          >
-            <Eye size={14} />
-            <span className="text-[9px] font-black tracking-wider uppercase">Preview_Opener</span>
-          </button>
-          <button
-            onClick={playReel}
-            disabled={isReelEmpty}
-            className={`
-                            text-[10px] font-black tracking-[0.2em] px-8 py-2 rounded-full transition-all uppercase shadow-[0_0_30px_rgba(79,70,229,0.3)]
-                            ${
-                              isReelEmpty
-                                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5 opacity-50'
-                                : 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer'
-                            }
-                        `}
-          >
-            Initiate_Theater
-          </button>
-        </div>
-      </div>
+      <SequencerHeader
+        reelLength={localReel.length}
+        isPlaying={playback.isPlaying}
+        neuralTemperature={neuralTemperature}
+        audioSrc={playback.audioSrc}
+        isAudioPlaying={playback.isAudioPlaying}
+        beatSyncMode={playback.beatSyncMode}
+        isLibraryOpen={isLibraryOpen}
+        onTogglePlayback={togglePlayback}
+        onToggleLibrary={() => setIsLibraryOpen(!isLibraryOpen)}
+        onOpenGooglePhotos={() => setShowGooglePhotos(true)}
+        onSave={() => setIsSaving(true)}
+        onExport={() => setShowExportModal(true)}
+        onOrchestrate={orchestrateReel}
+        onOpenThemeStudio={() => toggleUiPanel('isThemeStudioOpen')}
+        onPreview={() => setShowPreview(true)}
+        onPlayReel={playReel}
+      />
 
       {/* SAVE DIALOG */}
       <SaveReelModal isOpen={isSaving} onClose={() => setIsSaving(false)} />
@@ -353,6 +187,7 @@ export const StudioSequencer = () => {
         ref={scrollContainerRef}
         onScroll={handleScroll}
         className="flex-1 overflow-x-auto custom-scrollbar flex items-center px-12 py-4 relative z-10 bg-[#08080a]"
+        data-testid="sequencer-timeline"
       >
         <Reorder.Group
           axis="x"
@@ -381,11 +216,60 @@ export const StudioSequencer = () => {
             );
           })}
           {isReelEmpty ? (
-            <div className="flex-1 flex flex-col items-center justify-center opacity-20 py-20 min-w-[300px]">
-              <Film size={48} className="mb-4" />
-              <span className="text-[10px] font-mono uppercase tracking-[0.4em]">
-                Sequencer_Empty // Drag_Assets_Here
-              </span>
+            <div className="flex-1 flex flex-col items-center justify-center py-20 min-w-[300px] border-2 border-dashed border-white/5 rounded-3xl mx-12 z-20 mb-20 bg-black/50 backdrop-blur-sm">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col items-center text-center max-w-md"
+              >
+                <div className="w-20 h-20 bg-indigo-500/10 rounded-full flex items-center justify-center mb-6">
+                  <Film size={40} className="text-indigo-400/60" />
+                </div>
+                <h3 className="text-lg font-black text-white uppercase tracking-wider mb-2">
+                  Timeline Empty
+                </h3>
+                <p className="text-xs text-slate-500 font-mono mb-8 leading-relaxed uppercase tracking-tight">
+                  Your narrative sequence is currently unmapped. <br />
+                  Drag assets here or use the tools below to initialize.
+                </p>
+
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => {
+                      const allIds = images.map(img => img.id);
+                      if (allIds.length > 0) {
+                        useStore.getState().addToReel(allIds);
+                      } else {
+                        useStore
+                          .getState()
+                          .addCouncilLog('No assets found on canvas to add.', 'warn');
+                      }
+                    }}
+                    className="px-6 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-indigo-300 transition-all"
+                    data-testid="btn-add-all-from-canvas"
+                  >
+                    Add All From Canvas
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const allIds = images.map(img => img.id);
+                      if (allIds.length > 0) {
+                        useStore.getState().addToReel(allIds);
+                        // Slight delay to ensure state update before orchestration
+                        setTimeout(() => orchestrateReel(), 100);
+                      } else {
+                        useStore
+                          .getState()
+                          .addCouncilLog('Add some images to the canvas first!', 'info');
+                      }
+                    }}
+                    className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all flex items-center gap-2"
+                    data-testid="btn-auto-orchestrate"
+                  >
+                    Auto-Orchestrate
+                  </button>
+                </div>
+              </motion.div>
             </div>
           ) : (
             <div className="h-32 w-16 border-2 border-dashed border-white/10 rounded-xl flex items-center justify-center text-slate-600 hover:text-white hover:border-white/30 transition-colors shrink-0 cursor-pointer">

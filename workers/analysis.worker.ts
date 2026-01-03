@@ -1,12 +1,11 @@
-
 /**
  * ANALYSIS.WORKER.TS
  * Offloads heavy image processing from the main thread.
  * Handles resizing via OffscreenCanvas and Base64 preparation.
  */
 
-self.onerror = (e) => {
-    console.error("Analysis Worker Internal Global Error:", e);
+self.onerror = e => {
+  console.error('Analysis Worker Internal Global Error:', e);
 };
 
 self.onmessage = async (e: MessageEvent) => {
@@ -26,7 +25,7 @@ self.onmessage = async (e: MessageEvent) => {
       }
 
       const bitmap = await createImageBitmap(blob);
-      
+
       // Target size for Gemini Analysis (to reduce bandwidth and latency)
       const MAX_DIM = 1024;
       let width = bitmap.width;
@@ -46,13 +45,13 @@ self.onmessage = async (e: MessageEvent) => {
       const canvas = new OffscreenCanvas(width, height);
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Could not get OffscreenCanvas context');
-      
+
       ctx.drawImage(bitmap, 0, 0, width, height);
-      
+
       // Convert to a compressed JPEG for Gemini
       const processedBlob = await canvas.convertToBlob({
         type: 'image/jpeg',
-        quality: 0.85
+        quality: 0.85,
       });
 
       const reader = new FileReader();
@@ -63,17 +62,17 @@ self.onmessage = async (e: MessageEvent) => {
           success: true,
           base64,
           mimeType: 'image/jpeg',
-          originalDimensions: { w: bitmap.width, h: bitmap.height }
+          originalDimensions: { w: bitmap.width, h: bitmap.height },
         });
       };
       reader.readAsDataURL(processedBlob);
-
-    } catch (error: any) {
-      console.error("Analysis Worker Processing Error:", error);
+    } catch (error: unknown) {
+      console.error('Analysis Worker Processing Error:', error);
+      const message = error instanceof Error ? error.message : 'Unknown analysis error';
       self.postMessage({
         id,
         success: false,
-        error: error.message || "Unknown analysis error"
+        error: message,
       });
     }
   }

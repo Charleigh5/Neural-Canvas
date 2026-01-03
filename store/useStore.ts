@@ -27,6 +27,10 @@ import { calculateSmartCrop } from '../utils/smartCrop';
 import { resolveAssetUrl } from '../utils/assetUtils';
 import { assetDB } from '../services/db';
 
+import { semanticService } from '../services/semanticService';
+import { generateDepthMap as generateDepthMapService } from '../services/depthService';
+import { localClassificationService } from '../services/localClassificationService';
+
 interface StoreState {
   mode: AppMode;
   images: ImageAsset[];
@@ -47,6 +51,14 @@ interface StoreState {
   isCameraOpen: boolean;
   isAnalysisRunning: boolean;
 
+  // Semantic Search State
+  searchResults: string[];
+  isSemanticSearchActive: boolean;
+
+  // API Status (for graceful degradation)
+  apiStatus: 'available' | 'rate-limited' | 'error';
+  apiStatusMessage: string | null;
+
   // Export State
   isExporting: boolean;
   status: ExportStatus;
@@ -65,8 +77,10 @@ interface StoreState {
   setError: (error: string | null) => void;
 
   // Actions
+  performSemanticSearch: (query: string) => Promise<void>;
+  clearSearch: () => void;
   setMode: (mode: AppMode) => void;
-  addImage: (image: ImageAsset) => Promise<void>;
+  addImage: (image: ImageAsset, options?: { skipPhysics?: boolean }) => Promise<void>;
   updateImage: (id: string, updates: Partial<ImageAsset>) => void;
   removeImage: (id: string) => void;
   setSelectedIds: (ids: string[]) => void;
@@ -86,12 +100,19 @@ interface StoreState {
   toggleCaptions: () => void;
   setPresentationMode: (mode: PresentationMode) => void;
   toggleUiPanel: (panel: keyof UiState) => void;
+  toggleNavNode: (nodeId: string) => void;
   setCameraOpen: (isOpen: boolean) => void;
   setGooglePhotosToken: (token: string) => void;
   addCouncilLog: (msg: string, type?: 'info' | 'warn' | 'error' | 'success') => void;
   setLiveStatus: (status: 'idle' | 'listening' | 'thinking' | 'speaking' | 'connecting') => void;
   setPlaybackMode: (mode: 'sequential' | 'smart-shuffle') => void;
   clearReel: () => void;
+
+  // API Status Actions
+  updateApiStatus: (
+    status: 'available' | 'rate-limited' | 'error',
+    message?: string | null
+  ) => void;
 
   // AI Actions
   processAnalysisQueue: () => Promise<void>;
@@ -130,6 +151,8 @@ interface StoreState {
   generateCaptionsForReel: () => Promise<void>;
   regenerateImageCaption: (id: string) => Promise<void>;
   setForgeImageId: (id: string | null) => void;
+  generateDepthMap: (id: string) => Promise<void>;
+  batchGenerateDepthMaps: (ids: string[]) => Promise<void>;
 
   // Audio Actions
   setAudioSrc: (src: string | null) => void;
@@ -183,6 +206,7 @@ const initialUi: UiState = {
   aspectRatio: '16:9',
   bezelTheme: 'standard',
   snowDensity: 0,
+  visibleNavNodes: ['constellation', 'assets', 'camera', 'player'],
 };
 
 // isAnalysisRunning moved to store state for proper React lifecycle management
@@ -216,6 +240,10 @@ export const useStore = create<StoreState>((set, get) => {
     googlePhotosToken: null,
     isCameraOpen: false,
     isAnalysisRunning: false,
+    searchResults: [],
+    isSemanticSearchActive: false,
+    apiStatus: 'available',
+    apiStatusMessage: null,
 
     addCouncilLog: (msg, type = 'info') =>
       set(state => ({
@@ -225,13 +253,33 @@ export const useStore = create<StoreState>((set, get) => {
         },
       })),
 
+    performSemanticSearch: async (query: string) => {
+      set({ isSemanticSearchActive: true });
+      try {
+        const results = await semanticService.search(query);
+        const ids = results.map(r => r.id);
+        // Filter to only IDs that exist in current images
+        const validIds = ids.filter(id => get().images.some(img => img.id === id));
+        set({ searchResults: validIds });
+        get().addCouncilLog(`Found ${validIds.length} matches for "${query}"`, 'success');
+      } catch (e) {
+        get().addCouncilLog('Semantic search failed', 'error');
+        console.error(e);
+      }
+    },
+
+    clearSearch: () => set({ isSemanticSearchActive: false, searchResults: [] }),
+
     setMode: mode => set({ mode }),
 
     setLiveStatus: status => set(state => ({ ui: { ...state.ui, liveStatus: status } })),
     setPlaybackMode: mode => set(state => ({ playback: { ...state.playback, mode } })),
     clearReel: () => set({ reel: [] }),
 
-    addImage: async image => {
+    updateApiStatus: (status, message = null) =>
+      set({ apiStatus: status, apiStatusMessage: message }),
+
+    addImage: async (image, options = {}) => {
       const { images } = get();
       // 1. Idempotence Check (Global Store Level)
       if (images.some(i => i.id === image.id)) return;
@@ -262,19 +310,46 @@ export const useStore = create<StoreState>((set, get) => {
       });
 
       // 4. Trigger Async Physics (Worker Offload)
-      const currentImages = get().images;
-      // Run physics in background thread
-      const resolvedImages = await resolveSpatialCollisions(currentImages);
-      // Update with resolved positions, merging back file objects if lost (though we kept them in state)
-      // We match by ID to ensure we don't overwrite newer changes if any
-      set(state => ({
-        images: resolvedImages.map(r => {
-          const existing = state.images.find(ex => ex.id === r.id);
-          return existing ? { ...existing, x: r.x, y: r.y } : r;
-        }),
-      }));
+      // Only run physics if NOT skipped.
+      if (!options.skipPhysics) {
+        const currentImages = get().images;
+        // Run physics in background thread
+        const resolvedImages = await resolveSpatialCollisions(currentImages);
+        // Update with resolved positions, merging back file objects if lost (though we kept them in state)
+        // We match by ID to ensure we don't overwrite newer changes if any
+        set(state => ({
+          images: resolvedImages.map(r => {
+            const existing = state.images.find(ex => ex.id === r.id);
+            return existing ? { ...existing, x: r.x, y: r.y } : r;
+          }),
+        }));
+      }
 
-      // 5. Trigger Async Processor (Fire and forget)
+      // 5. Trigger Semantic Indexing (Background)
+      resolveAssetUrl(image.url).then(url => {
+        if (url) semanticService.indexImage({ ...image, url });
+      });
+
+      // 6. Trigger Local AI Classification (Instant, no network)
+      // This provides quick localTags while we wait for Gemini analysis
+      resolveAssetUrl(image.url).then(async url => {
+        if (!url) return;
+        try {
+          const result = await localClassificationService.classifyImage(url, 5);
+          if (result.tags.length > 0) {
+            get().updateImage(image.id, {
+              localTags: result.tags,
+              localTagsConfidence: result.confidence,
+            });
+            get().addCouncilLog(`⚡ Local tags: ${result.tags.slice(0, 3).join(', ')}`, 'success');
+          }
+        } catch (e) {
+          // Local classification is best-effort, don't block on errors
+          console.debug('[LOCAL_CLASSIFY] Failed for', image.id, e);
+        }
+      });
+
+      // 7. Trigger Async Processor (Fire and forget)
       if (!image.analyzed) {
         get().processAnalysisQueue();
       }
@@ -307,11 +382,20 @@ export const useStore = create<StoreState>((set, get) => {
           try {
             const dataUrl = await resolveAssetUrl(asset.url);
             if (dataUrl) {
-              const base64 = dataUrl.split(',')[1];
+              // Compress a COPY for API analysis (original preserved for display)
+              const { compressForAnalysis } = await import('../services/imageCompressionService');
+              const compressedUrl = await compressForAnalysis(dataUrl);
+              const base64 = compressedUrl.split(',')[1];
               // Call wrapper - governor handles rate limits
               const analysis = await analyzeImage(base64, nextId);
 
               if (analysis) {
+                // Reset API status to available on successful analysis
+                if (get().apiStatus !== 'available') {
+                  get().updateApiStatus('available');
+                  get().addCouncilLog('✅ AI analysis restored', 'success');
+                }
+
                 set(state => ({
                   analyzedIds: new Set(state.analyzedIds).add(nextId),
                   images: state.images.map(img =>
@@ -330,22 +414,55 @@ export const useStore = create<StoreState>((set, get) => {
                 }));
               } else {
                 // If governor returned null (duplicate or skipped), remove from processing
+                get().addCouncilLog(
+                  `Analysis Skipped: API returned no result for ${nextId}`,
+                  'warn'
+                );
                 set(s => ({
                   processingIds: s.processingIds.filter(pid => pid !== nextId),
                 }));
               }
             } else {
               // Failed to resolve URL (maybe invalid local ID)
+              get().addCouncilLog(
+                `Analysis Failed: Could not resolve asset URL for ${nextId}`,
+                'error'
+              );
               set(s => ({
                 processingIds: s.processingIds.filter(pid => pid !== nextId),
               }));
             }
-          } catch {
-            // On error, we remove from processing to prevent infinite retry loop on bad assets
-            // The Governor logs the error.
-            set(s => ({
-              processingIds: s.processingIds.filter(pid => pid !== nextId),
-            }));
+          } catch (e) {
+            const errorMsg = e instanceof Error ? e.message : String(e);
+            const isRateLimited =
+              errorMsg.includes('429') ||
+              errorMsg.includes('rate limit') ||
+              errorMsg.includes('Quota exceeded') ||
+              errorMsg.includes('RESOURCE_EXHAUSTED');
+
+            if (isRateLimited) {
+              // Update API status for graceful degradation UX
+              get().updateApiStatus(
+                'rate-limited',
+                'AI analysis paused. Using local tags until quota resets.'
+              );
+              get().addCouncilLog('⏸️ AI Sleeping... using local tags', 'warn');
+
+              // Mark as analyzed to prevent retry loop - localTags are preserved
+              set(state => ({
+                analyzedIds: new Set(state.analyzedIds).add(nextId),
+                processingIds: state.processingIds.filter(pid => pid !== nextId),
+                images: state.images.map(img =>
+                  img.id === nextId ? { ...img, analyzed: true } : img
+                ),
+              }));
+            } else {
+              // On non-quota error, we remove from processing to prevent infinite retry loop
+              get().addCouncilLog(`Analysis Error: ${errorMsg}`, 'error');
+              set(s => ({
+                processingIds: s.processingIds.filter(pid => pid !== nextId),
+              }));
+            }
           } finally {
             set(state => ({
               neuralTemperature: Math.max(0, state.neuralTemperature - 5),
@@ -526,6 +643,14 @@ export const useStore = create<StoreState>((set, get) => {
         playback: { ...state.playback, presentationMode: mode },
       })),
     toggleUiPanel: panel => set(state => ({ ui: { ...state.ui, [panel]: !state.ui[panel] } })),
+    toggleNavNode: nodeId =>
+      set(state => {
+        const current = state.ui.visibleNavNodes;
+        const next = current.includes(nodeId)
+          ? current.filter(n => n !== nodeId)
+          : [...current, nodeId];
+        return { ui: { ...state.ui, visibleNavNodes: next } };
+      }),
     setCameraOpen: isOpen => set({ isCameraOpen: isOpen }),
     setGooglePhotosToken: token => set({ googlePhotosToken: token }),
 
@@ -965,6 +1090,68 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     setForgeImageId: id => set({ forgeImageId: id }),
+
+    generateDepthMap: async id => {
+      const img = get().images.find(i => i.id === id);
+      if (!img) return;
+      if (img.depthMapUrl) {
+        get().addCouncilLog(`Depth map already exists for ${id.substring(0, 4)}`, 'info');
+        return;
+      }
+
+      set(state => ({ neuralTemperature: state.neuralTemperature + 25 }));
+      get().addCouncilLog(`Generating depth map for ${id.substring(0, 4)}...`, 'info');
+
+      try {
+        const dataUrl = await resolveAssetUrl(img.url);
+        if (!dataUrl) {
+          get().addCouncilLog('Failed to resolve asset URL', 'error');
+          return;
+        }
+
+        const depthMapUrl = await generateDepthMapService(dataUrl);
+        if (depthMapUrl) {
+          // Persist depth map to DB
+          const depthId = `${id}_depth`;
+          await assetDB.save(depthId, depthMapUrl);
+          get().updateImage(id, { depthMapUrl: `local://${depthId}` });
+          get().addCouncilLog(`Depth map generated for ${id.substring(0, 4)}`, 'success');
+        } else {
+          get().addCouncilLog('Depth map generation failed', 'error');
+        }
+      } catch (error) {
+        console.error('[DepthStore] Depth generation error:', error);
+        get().addCouncilLog('Depth map generation error', 'error');
+      } finally {
+        set(state => ({
+          neuralTemperature: Math.max(0, state.neuralTemperature - 25),
+        }));
+      }
+    },
+
+    batchGenerateDepthMaps: async ids => {
+      const { images } = get();
+      const validIds = ids.filter(id => {
+        const img = images.find(i => i.id === id);
+        return img && !img.depthMapUrl; // Only process images without depth maps
+      });
+
+      if (validIds.length === 0) {
+        get().addCouncilLog('All selected images already have depth maps', 'info');
+        return;
+      }
+
+      get().addCouncilLog(`Generating ${validIds.length} depth maps...`, 'info');
+
+      // Process sequentially to avoid overwhelming the system
+      for (const id of validIds) {
+        await get().generateDepthMap(id);
+        // Small delay between generations to let UI update
+        await new Promise(r => setTimeout(r, 100));
+      }
+
+      get().addCouncilLog(`Batch complete: ${validIds.length} depth maps generated`, 'success');
+    },
 
     // Persistence Actions
     hydrateFromDB: async () => {

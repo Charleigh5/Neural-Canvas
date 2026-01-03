@@ -26,9 +26,9 @@ export const ReelLibrary: React.FC<ReelLibraryProps> = ({ isOpen }) => {
               </div>
             ) : (
               savedReels.map(reel => (
-                <div
+                <button
                   key={reel.id}
-                  className="group relative shrink-0 w-40 cursor-pointer"
+                  className="group relative shrink-0 w-40 cursor-pointer text-left"
                   onClick={() => loadReel(reel.id)}
                 >
                   <div className="aspect-video bg-slate-900 rounded-lg border border-white/10 overflow-hidden group-hover:border-indigo-500/50 transition-colors">
@@ -64,7 +64,7 @@ export const ReelLibrary: React.FC<ReelLibraryProps> = ({ isOpen }) => {
                       <Trash2 size={12} />
                     </button>
                   </div>
-                </div>
+                </button>
               ))
             )}
           </div>

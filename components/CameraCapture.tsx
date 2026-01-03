@@ -1,43 +1,34 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   X,
   RefreshCw,
   AlertTriangle,
   Cpu,
-  Video,
-  Camera,
   Square,
   Eye,
   EyeOff,
-  Zap,
-  Activity,
   CheckCircle2,
   Loader2,
   Sparkles,
   Image as ImageIcon,
-} from "lucide-react";
-import { useStore } from "../store/useStore";
-import { AppMode, ImageAsset } from "../types";
-import { motion, AnimatePresence } from "framer-motion";
+} from 'lucide-react';
+import { useStore } from '../store/useStore';
+import { AppMode, ImageAsset } from '../types';
+import { motion, AnimatePresence } from 'framer-motion';
 
-export const CameraCapture: React.FC<{ onClose: () => void }> = ({
-  onClose,
-}) => {
+export const CameraCapture: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  const { addImage, images, processingIds, setCameraOpen, setMode } =
-    useStore();
+  const { addImage, images, processingIds, setCameraOpen, setMode } = useStore();
 
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [facingMode, setFacingMode] = useState<"user" | "environment">(
-    "environment"
-  );
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
-  const [mode, setModeState] = useState<"photo" | "video">("photo");
+  const [mode, setModeState] = useState<'photo' | 'video'>('photo');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [showHud, setShowHud] = useState(true);
@@ -50,16 +41,16 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
     return () => {
       setCameraOpen(false);
       if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+        stream.getTracks().forEach(track => track.stop());
       }
     };
   }, [setCameraOpen, stream]);
 
   useEffect(() => {
-    let interval: any;
+    let interval: ReturnType<typeof setInterval>;
     if (isRecording) {
       interval = setInterval(() => {
-        setRecordingTime((prev) => prev + 1);
+        setRecordingTime(prev => prev + 1);
       }, 1000);
     } else {
       setRecordingTime(0);
@@ -67,10 +58,10 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
     return () => clearInterval(interval);
   }, [isRecording]);
 
-  const startCamera = async () => {
+  const startCamera = useCallback(async () => {
     try {
       if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+        stream.getTracks().forEach(track => track.stop());
       }
 
       const newStream = await navigator.mediaDevices.getUserMedia({
@@ -87,28 +78,31 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
         videoRef.current.srcObject = newStream;
       }
       setError(null);
-    } catch (err: any) {
-      setError(err.message || "SENSORY_INPUT_FAILURE: ACCESS DENIED");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'SENSORY_INPUT_FAILURE: ACCESS DENIED';
+      setError(message);
     }
-  };
+  }, [facingMode, stream]);
 
   useEffect(() => {
     startCamera();
-  }, [facingMode]);
+  }, [startCamera]);
 
   const toggleCamera = () => {
-    setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
+    setFacingMode(prev => (prev === 'user' ? 'environment' : 'user'));
   };
 
   const playShutterSound = () => {
     try {
       const AudioContext =
-        window.AudioContext || (window as any).webkitAudioContext;
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof window.AudioContext })
+          .webkitAudioContext;
       const ctx = new AudioContext();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = "sine";
+      osc.type = 'sine';
       osc.frequency.setValueAtTime(880, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.1);
 
@@ -120,7 +114,7 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
 
       osc.start();
       osc.stop(ctx.currentTime + 0.1);
-    } catch (e) {
+    } catch {
       /* Fallback for browser restrictions */
     }
   };
@@ -130,21 +124,21 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    const context = canvas.getContext("2d");
+    const context = canvas.getContext('2d');
 
     if (context) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
       context.save();
-      if (facingMode === "user") {
+      if (facingMode === 'user') {
         context.translate(canvas.width, 0);
         context.scale(-1, 1);
       }
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       context.restore();
 
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
 
       setFlash(true);
       playShutterSound();
@@ -160,14 +154,14 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
         y: 100 + Math.random() * 200,
         rotation: 0,
         scale: 1,
-        tags: ["camera_capture", "neural_optic"],
+        tags: ['camera_capture', 'neural_optic'],
         analyzed: false,
         timestamp: Date.now(),
-        primaryTag: "NEURAL_STILL",
-        mediaType: "image",
+        primaryTag: 'NEURAL_STILL',
+        mediaType: 'image',
       };
 
-      setSessionCaptures((prev) => [id, ...prev]);
+      setSessionCaptures(prev => [id, ...prev]);
       await addImage(newItem);
     }
   };
@@ -182,12 +176,12 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
-      mediaRecorder.ondataavailable = (e) => {
+      mediaRecorder.ondataavailable = e => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
 
       mediaRecorder.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: "video/webm" });
+        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
         const url = URL.createObjectURL(blob);
         const id = Math.random().toString(36).substring(2, 11);
 
@@ -200,13 +194,13 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
           y: 100 + Math.random() * 200,
           rotation: 0,
           scale: 1,
-          tags: ["video_log", "neural_clip"],
+          tags: ['video_log', 'neural_clip'],
           analyzed: false,
           timestamp: Date.now(),
-          primaryTag: "NEURAL_VIDEO",
-          mediaType: "video",
+          primaryTag: 'NEURAL_VIDEO',
+          mediaType: 'video',
         };
-        setSessionCaptures((prev) => [id, ...prev]);
+        setSessionCaptures(prev => [id, ...prev]);
         await addImage(newItem);
       };
 
@@ -216,7 +210,7 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
   };
 
   const capturedItems = sessionCaptures
-    .map((id) => images.find((img) => img.id === id))
+    .map(id => images.find(img => img.id === id))
     .filter(Boolean) as ImageAsset[];
 
   return (
@@ -265,7 +259,7 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
               playsInline
               muted
               className={`w-full h-full object-cover transition-opacity duration-1000 ${
-                facingMode === "user" ? "scale-x-[-1]" : ""
+                facingMode === 'user' ? 'scale-x-[-1]' : ''
               }`}
             />
 
@@ -285,9 +279,7 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
                       <div className="flex items-center gap-2">
                         <div className="bg-[#121b2d]/90 border border-cyan-500/40 px-3 py-1.5 rounded-[2px] flex items-center gap-2 backdrop-blur-sm shadow-xl">
                           <Cpu size={12} className="text-cyan-400" />
-                          <span className="text-cyan-400 font-black">
-                            NEURAL_OPTIC_LIVE
-                          </span>
+                          <span className="text-cyan-400 font-black">NEURAL_OPTIC_LIVE</span>
                         </div>
                       </div>
                     </div>
@@ -301,7 +293,7 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
                           REC_TIME: {formatTime(recordingTime)}
                         </span>
                       ) : (
-                        "STANDBY"
+                        'STANDBY'
                       )}
                     </div>
                   </div>
@@ -312,10 +304,7 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
                       <div className="absolute top-1/2 left-0 right-0 h-px bg-white/40" />
                       <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/40" />
                     </div>
-                    <svg
-                      className="absolute inset-0 w-full h-full"
-                      viewBox="0 0 100 100"
-                    >
+                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
                       <circle
                         cx="50"
                         cy="50"
@@ -361,10 +350,7 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
                         <div className="absolute inset-0 bg-black/20" />
                         {processingIds.includes(item.id) ? (
                           <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                            <Loader2
-                              className="text-cyan-400 animate-spin"
-                              size={20}
-                            />
+                            <Loader2 className="text-cyan-400 animate-spin" size={20} />
                           </div>
                         ) : (
                           <div className="absolute top-1.5 right-1.5 bg-emerald-500 rounded-full p-0.5 shadow-lg">
@@ -412,7 +398,7 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
           <button
             onClick={() => setShowHud(!showHud)}
             className={`flex flex-col items-center justify-center gap-2 w-20 h-20 bg-[#0d131f] border border-white/5 rounded-2xl group transition-all hover:bg-[#121b2d] ${
-              showHud ? "hover:border-cyan-500/30" : "border-rose-500/30"
+              showHud ? 'hover:border-cyan-500/30' : 'border-rose-500/30'
             }`}
           >
             {showHud ? (
@@ -422,7 +408,7 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
             )}
             <span
               className={`text-[9px] font-black font-mono tracking-tighter uppercase ${
-                showHud ? "text-cyan-600" : "text-rose-600"
+                showHud ? 'text-cyan-600' : 'text-rose-600'
               }`}
             >
               Hud
@@ -436,18 +422,18 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.9 }}
-            onClick={mode === "photo" ? capturePhoto : toggleRecording}
+            onClick={mode === 'photo' ? capturePhoto : toggleRecording}
             className="relative w-28 h-28 rounded-full border-[6px] border-white flex items-center justify-center p-2 transition-all shadow-[0_0_50px_rgba(255,255,255,0.1)] group"
           >
             <div
               className={`
                         transition-all duration-500
                         ${
-                          mode === "photo"
-                            ? "w-full h-full bg-white rounded-full group-active:scale-95"
+                          mode === 'photo'
+                            ? 'w-full h-full bg-white rounded-full group-active:scale-95'
                             : isRecording
-                            ? "w-14 h-14 bg-rose-600 rounded-[8px]"
-                            : "w-20 h-20 bg-rose-600 rounded-full shadow-[0_0_25px_rgba(225,29,72,0.4)]"
+                              ? 'w-14 h-14 bg-rose-600 rounded-[8px]'
+                              : 'w-20 h-20 bg-rose-600 rounded-full shadow-[0_0_25px_rgba(225,29,72,0.4)]'
                         }
                     `}
             >
@@ -462,22 +448,18 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
           {/* MODE TOGGLE RADIOS */}
           <div className="absolute -top-12 flex items-center gap-6 bg-black/40 border border-white/5 px-4 py-1.5 rounded-full backdrop-blur-md">
             <button
-              onClick={() => setModeState("photo")}
+              onClick={() => setModeState('photo')}
               className={`text-[9px] font-black uppercase tracking-[0.2em] transition-colors ${
-                mode === "photo"
-                  ? "text-white"
-                  : "text-slate-600 hover:text-slate-400"
+                mode === 'photo' ? 'text-white' : 'text-slate-600 hover:text-slate-400'
               }`}
             >
               Photo
             </button>
             <div className="w-1 h-1 bg-white/10 rounded-full" />
             <button
-              onClick={() => setModeState("video")}
+              onClick={() => setModeState('video')}
               className={`text-[9px] font-black uppercase tracking-[0.2em] transition-colors ${
-                mode === "video"
-                  ? "text-rose-500"
-                  : "text-slate-600 hover:text-slate-400"
+                mode === 'video' ? 'text-rose-500' : 'text-slate-600 hover:text-slate-400'
               }`}
             >
               Video
@@ -507,10 +489,7 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
             onClick={onClose}
             className="flex flex-col items-center justify-center gap-2 w-20 h-20 bg-[#0d131f] border border-white/5 rounded-2xl group transition-all hover:bg-[#1d1214] hover:border-rose-500/30"
           >
-            <X
-              size={22}
-              className="text-slate-500 group-hover:text-rose-400 transition-colors"
-            />
+            <X size={22} className="text-slate-500 group-hover:text-rose-400 transition-colors" />
             <span className="text-[9px] font-black font-mono text-slate-600 tracking-tighter group-hover:text-rose-600 uppercase">
               Close
             </span>
@@ -525,5 +504,5 @@ export const CameraCapture: React.FC<{ onClose: () => void }> = ({
 const formatTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 };

@@ -28,14 +28,12 @@ export interface UISlice {
   toggleCaptions: () => void;
   setPresentationMode: (mode: PresentationMode) => void;
   toggleUiPanel: (panel: keyof UiState) => void;
+  toggleNavNode: (nodeId: string) => void;
   setCameraOpen: (isOpen: boolean) => void;
   setGooglePhotosToken: (token: string) => void;
   addCouncilLog: (msg: string, type?: 'info' | 'warn' | 'error' | 'success') => void;
   setLiveStatus: (status: 'idle' | 'listening' | 'thinking' | 'speaking' | 'connecting') => void;
   setActiveTool: (tool: 'pointer' | 'hand' | 'draw') => void;
-  saveReel: (name: string, reel: string[], overwriteId?: string) => void;
-  loadReel: (id: string) => string[];
-  deleteReel: (id: string) => void;
   saveTheme: (theme: ThemeConfig) => void;
 }
 
@@ -56,9 +54,10 @@ const defaultUI: UiState & { councilLogs: { msg: string; type: string; time: num
   isThemeStudioOpen: false,
   toast: null,
   councilLogs: [],
+  visibleNavNodes: ['constellation', 'assets', 'camera', 'player'],
 };
 
-export const createUISlice: StateCreator<UISlice, [], [], UISlice> = (set, get) => ({
+export const createUISlice: StateCreator<UISlice, [], [], UISlice> = set => ({
   mode: AppMode.HOME,
   ui: defaultUI,
   activeTool: 'pointer',
@@ -106,6 +105,15 @@ export const createUISlice: StateCreator<UISlice, [], [], UISlice> = (set, get) 
       ui: { ...state.ui, [panel]: !state.ui[panel] },
     })),
 
+  toggleNavNode: nodeId =>
+    set(state => {
+      const current = state.ui.visibleNavNodes;
+      const next = current.includes(nodeId)
+        ? current.filter(n => n !== nodeId)
+        : [...current, nodeId];
+      return { ui: { ...state.ui, visibleNavNodes: next } };
+    }),
+
   setCameraOpen: isOpen => set({ isCameraOpen: isOpen }),
 
   setGooglePhotosToken: token => set({ googlePhotosToken: token }),
@@ -124,36 +132,6 @@ export const createUISlice: StateCreator<UISlice, [], [], UISlice> = (set, get) 
     })),
 
   setActiveTool: tool => set({ activeTool: tool }),
-
-  saveReel: (name, reel, overwriteId) =>
-    set(state => {
-      const newReel: SavedReel = {
-        id: overwriteId || Math.random().toString(36).substring(2, 11),
-        name,
-        itemIds: [...reel],
-        createdAt: Date.now(),
-      };
-
-      const existingIndex = state.savedReels.findIndex(r => r.id === overwriteId);
-
-      if (existingIndex >= 0) {
-        const updated = [...state.savedReels];
-        updated[existingIndex] = newReel;
-        return { savedReels: updated };
-      }
-
-      return { savedReels: [...state.savedReels, newReel] };
-    }),
-
-  loadReel: id => {
-    const reel = get().savedReels.find(r => r.id === id);
-    return reel?.itemIds || [];
-  },
-
-  deleteReel: id =>
-    set(state => ({
-      savedReels: state.savedReels.filter(r => r.id !== id),
-    })),
 
   saveTheme: theme =>
     set(state => ({

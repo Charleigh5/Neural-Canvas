@@ -60,6 +60,12 @@ export interface ImageAsset {
   parentId?: string;
   variantType?: 'original' | 'edit' | 'prop' | 'upscale' | 'variant';
 
+  // Versioning (synced with backend)
+  versionNumber?: number;
+  isOriginal?: boolean;
+  processingStatus?: 'pending' | 'processing' | 'completed' | 'failed';
+  originalAssetId?: string; // For quick lookup of the original
+
   // Transition / Playback
   transition?:
     | 'fade'
@@ -72,7 +78,8 @@ export interface ImageAsset {
     | 'swirl'
     | 'flash'
     | 'zoom-blur'
-    | 'kaleido';
+    | 'kaleido'
+    | 'parallax';
   kenBurns?: { start: number; end: number };
 
   // Style analysis
@@ -96,6 +103,13 @@ export interface ImageAsset {
 
   // Remix handling
   flipX?: boolean;
+
+  // Depth Parallax (Ken Burns 2.0)
+  depthMapUrl?: string;
+
+  // Local AI Classification (browser-based, instant)
+  localTags?: string[];
+  localTagsConfidence?: Record<string, number>;
 }
 
 export interface PlaybackConfig {
@@ -137,6 +151,7 @@ export interface UiState {
   aspectRatio: '16:9' | '9:16';
   bezelTheme: BezelTheme;
   snowDensity: number;
+  visibleNavNodes: string[];
 }
 
 export interface OrchestratorState {

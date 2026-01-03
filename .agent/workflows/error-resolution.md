@@ -12,7 +12,10 @@ This workflow governs how all agents and developers handle bugs, errors, and iss
 
 ### Step 1: Review Error Resolution Log
 
-Before making ANY changes, check `docs/ERROR_RESOLUTION_LOG.md`:
+Before making ANY changes:
+
+1. **Review Protocol**: Check `docs/BUG_PROTOCOL.md` for the latest SOP.
+2. **Check Log**: Review `docs/ERROR_RESOLUTION_LOG.md`:
 
 ```text
 // turbo
@@ -24,7 +27,10 @@ Before making ANY changes, check `docs/ERROR_RESOLUTION_LOG.md`:
 
 ### Step 2: Gather Telemetry Data
 
-Collect all available diagnostic information:
+Collect all available diagnostic information.
+**CRITICAL**: Remove white-noise console logs before debugging (see `docs/BUG_PROTOCOL.md`). Only keep logs relevant to the bug.
+
+Check list:
 
 - [ ] IDE-reported errors (ESLint, TypeScript)
 - [ ] Browser console errors (if applicable)

@@ -1,16 +1,24 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { AppMode } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Palette, Menu, Search, Mic, MicOff } from 'lucide-react';
-import { NavigationDock } from './ui/NavigationDock';
+import { Play, Palette, Menu, Search, Mic, MicOff, X } from 'lucide-react';
+import { HomeRow } from './ui/HomeRow';
 import { InspectorPanel } from './InspectorPanel';
 import { StudioSequencer } from './StudioSequencer';
 import { ThemeStudio } from './ThemeStudio';
 import { LiveDirector } from './LiveDirector';
 import { CameraCapture } from './CameraCapture';
 import { CouncilLogs } from './CouncilLogs';
-import { LiveDirectorSession } from '../services/liveService';
+import { GlobalStatusIndicator } from './GlobalStatusIndicator';
+import {
+  LiveDirectorSession,
+  ManageReelArgs,
+  AdjustEnvironmentArgs,
+  SelectAssetsArgs,
+  ModifyAssetsArgs,
+  GenerateThemeArgs,
+} from '../services/liveService';
 
 interface OrbitalFrameProps {
   children: React.ReactNode;
@@ -56,9 +64,20 @@ export const OrbitalFrame: React.FC<OrbitalFrameProps> = ({ children }) => {
     updateImage,
     generateCustomTheme,
     images,
+    performSemanticSearch,
+    clearSearch,
+    isSemanticSearchActive,
+    searchResults,
   } = useStore();
 
   const sessionRef = useRef<LiveDirectorSession | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      performSemanticSearch(searchQuery);
+    }
+  };
 
   // --- LIVE DIRECTOR SESSION MANAGEMENT ---
   useEffect(() => {
@@ -70,62 +89,71 @@ export const OrbitalFrame: React.FC<OrbitalFrameProps> = ({ children }) => {
           onToolCall: async (name, args) => {
             console.debug('Tool Call:', name, args);
             switch (name) {
-              case 'manage_reel':
-                if (args.action === 'SAVE') {
-                  saveReel(args.name || `Reel_${Date.now()}`);
-                  return `Saved reel as ${args.name || 'Untitled'}`;
-                } else if (args.action === 'LOAD') {
+              case 'manage_reel': {
+                const reelArgs = args as unknown as ManageReelArgs;
+                if (reelArgs.action === 'SAVE') {
+                  saveReel(reelArgs.name || `Reel_${Date.now()}`);
+                  return `Saved reel as ${reelArgs.name || 'Untitled'}`;
+                } else if (reelArgs.action === 'LOAD') {
                   const target = savedReels.find(r =>
-                    r.name.toLowerCase().includes(args.name.toLowerCase())
+                    r.name.toLowerCase().includes((reelArgs.name || '').toLowerCase())
                   );
                   if (target) {
                     loadReel(target.id);
                     return `Loaded reel: ${target.name}`;
                   }
-                  return `Could not find reel named ${args.name}`;
-                } else if (args.action === 'CLEAR') {
+                  return `Could not find reel named ${reelArgs.name}`;
+                } else if (reelArgs.action === 'CLEAR') {
                   clearReel();
                   return 'Reel cleared.';
                 }
                 return 'Action not recognized.';
+              }
 
-              case 'adjust_environment':
-                if (args.theme) setBezelTheme(args.theme);
-                if (args.speed) setPlaybackSpeed(args.speed);
-                if (args.mode) setPlaybackMode(args.mode);
+              case 'adjust_environment': {
+                const envArgs = args as AdjustEnvironmentArgs;
+                if (envArgs.theme) setBezelTheme(envArgs.theme);
+                if (envArgs.speed) setPlaybackSpeed(envArgs.speed);
+                if (envArgs.mode) setPlaybackMode(envArgs.mode);
                 return 'Environment adjusted.';
+              }
 
-              case 'select_assets':
-                // Mock semantic selection logic (normally would use vector search)
-                if (args.action === 'SELECT') {
-                  const allIds = images.map(i => i.id);
-                  setSelectedIds(allIds.slice(0, 5)); // Just select first 5 for now
-                  return 'Selected assets.';
+              case 'select_assets': {
+                const selectArgs = args as unknown as SelectAssetsArgs;
+                // Use REAL semantic search if available
+                if (selectArgs.action === 'SELECT' && selectArgs.description) {
+                  await performSemanticSearch(selectArgs.description);
+                  // searchResults state is updated async, so we assume success for the voice response
+                  return `Searching for ${selectArgs.description}...`;
                 }
-                if (args.action === 'DESELECT') {
+                if (selectArgs.action === 'DESELECT') {
                   setSelectedIds([]);
                   return 'Deselected all.';
                 }
                 return 'Selection updated.';
+              }
 
               case 'modify_assets': {
-                const targets = args.ids || useStore.getState().selectedIds;
+                const modifyArgs = args as ModifyAssetsArgs;
+                const targets = modifyArgs.ids || useStore.getState().selectedIds;
                 if (targets.length === 0) return 'No assets selected.';
                 targets.forEach((id: string) =>
                   updateImage(id, {
-                    brightness: args.brightness,
-                    contrast: args.contrast,
-                    saturation: args.saturation,
-                    blur: args.blur,
-                    hue: args.hue,
+                    brightness: modifyArgs.brightness,
+                    contrast: modifyArgs.contrast,
+                    saturation: modifyArgs.saturation,
+                    blur: modifyArgs.blur,
+                    hue: modifyArgs.hue,
                   })
                 );
                 return `Modified ${targets.length} assets.`;
               }
 
-              case 'generate_theme':
-                await generateCustomTheme(args.prompt);
+              case 'generate_theme': {
+                const themeArgs = args as unknown as GenerateThemeArgs;
+                await generateCustomTheme(themeArgs.prompt);
                 return 'Theme generated and applied.';
+              }
 
               default:
                 return 'Tool not implemented.';
@@ -161,6 +189,7 @@ export const OrbitalFrame: React.FC<OrbitalFrameProps> = ({ children }) => {
     setSelectedIds,
     updateImage,
     generateCustomTheme,
+    performSemanticSearch, // Added dependency
   ]);
 
   return (
@@ -194,17 +223,45 @@ export const OrbitalFrame: React.FC<OrbitalFrameProps> = ({ children }) => {
           {/* CENTER: SEARCH / ORMNI-BAR */}
           <div className="flex-1 flex justify-center">
             <div className="relative w-96 group">
-              <div className="absolute inset-0 bg-indigo-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative bg-black/50 border border-white/10 rounded-full flex items-center px-4 py-2 gap-3 transition-colors group-hover:border-indigo-500/30">
-                <Search size={14} className="text-slate-500" />
+              <div
+                className={`absolute inset-0 bg-indigo-500/20 rounded-full blur-xl transition-opacity ${isSemanticSearchActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+              />
+              <div
+                className={`relative bg-black/50 border rounded-full flex items-center px-4 py-2 gap-3 transition-all ${isSemanticSearchActive ? 'border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'border-white/10 group-hover:border-indigo-500/30'}`}
+              >
+                <Search
+                  size={14}
+                  className={isSemanticSearchActive ? 'text-indigo-400' : 'text-slate-500'}
+                />
                 <input
                   type="text"
-                  placeholder="Search assets, tags, or neural commands..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onKeyDown={handleSearch}
+                  placeholder={
+                    isSemanticSearchActive
+                      ? `${searchResults.length} Results Found`
+                      : 'Search assets, tags, or neural commands...'
+                  }
                   className="bg-transparent border-none outline-none text-[10px] font-mono text-white placeholder-slate-600 w-full"
                 />
-                <div className="text-[8px] font-black text-slate-700 border border-slate-800 px-1.5 rounded bg-black">
-                  ⌘K
-                </div>
+                {isSemanticSearchActive ? (
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      clearSearch();
+                    }}
+                    className="text-slate-500 hover:text-white"
+                    aria-label="Clear search"
+                    title="Clear search"
+                  >
+                    <X size={12} />
+                  </button>
+                ) : (
+                  <div className="text-[8px] font-black text-slate-700 border border-slate-800 px-1.5 rounded bg-black">
+                    ENTER
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -269,6 +326,7 @@ export const OrbitalFrame: React.FC<OrbitalFrameProps> = ({ children }) => {
 
       {/* --- MAIN VIEWPORT --- */}
       <div className="flex-1 relative overflow-hidden flex">
+        <GlobalStatusIndicator />
         {/* CANVAS/CONTENT */}
         <div className="flex-1 relative z-0">{children}</div>
 
@@ -317,17 +375,12 @@ export const OrbitalFrame: React.FC<OrbitalFrameProps> = ({ children }) => {
       {/* Council Logs Terminal */}
       {mode !== AppMode.PLAYER && <CouncilLogs />}
 
-      {/* Navigation Dock (Floating Bottom) */}
-      {/* Navigation Dock */}
-      {/* 1. Bottom Floating (Standard Mode) */}
-      {mode !== AppMode.PLAYER && mode !== AppMode.CONSTELLATION && !isCameraOpen && (
-        <NavigationDock docked={false} />
-      )}
-
-      {/* 2. Top Docked (Immersive Modes) */}
-      {(mode === AppMode.PLAYER || mode === AppMode.CONSTELLATION) && !isCameraOpen && (
-        <NavigationDock docked={true} />
-      )}
+      {/* Home Row (Unified Navigation) */}
+      {!isCameraOpen &&
+        mode !== AppMode.PLAYER &&
+        (!ui.isTimelineOpen || mode !== AppMode.CANVAS) && (
+          <HomeRow docked={mode === AppMode.CONSTELLATION} />
+        )}
 
       {/* --- MODALS & OVERLAYS --- */}
       <AnimatePresence>

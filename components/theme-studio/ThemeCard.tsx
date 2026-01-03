@@ -25,25 +25,40 @@ export const ThemeCard: React.FC<ThemeCardProps> = ({
     [theme.bezelColor, theme.accentColor]
   );
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onLoadTheme(theme);
+    }
+  };
+
   return (
     <div
       key={theme.id}
-      className={`group relative p-3 rounded-xl transition-all cursor-pointer border ${
+      className={`group relative p-3 rounded-xl transition-all border ${
         isActive
           ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
           : 'bg-white/5 border-white/5 hover:border-emerald-500/30'
       }`}
-      onClick={() => onLoadTheme(theme)}
       {...{ style: themeStyle }}
     >
       <div className="flex items-center justify-between">
-        <span
-          className={`text-[10px] font-black uppercase tracking-wider ${
-            isActive ? 'text-emerald-400' : 'text-white'
-          }`}
+        {/* Clickable theme name area - keeps interactive role separate from delete button */}
+        <div
+          onClick={() => onLoadTheme(theme)}
+          onKeyDown={handleKeyDown}
+          role="button"
+          tabIndex={0}
+          className="flex-1 cursor-pointer"
         >
-          {theme.name}
-        </span>
+          <span
+            className={`text-[10px] font-black uppercase tracking-wider ${
+              isActive ? 'text-emerald-400' : 'text-white'
+            }`}
+          >
+            {theme.name}
+          </span>
+        </div>
         <button
           onClick={e => {
             e.stopPropagation();
@@ -56,7 +71,13 @@ export const ThemeCard: React.FC<ThemeCardProps> = ({
         </button>
       </div>
       {/* Color swatches using CSS variables defined on parent */}
-      <div className="mt-2 flex gap-1">
+      <div
+        className="mt-2 flex gap-1 cursor-pointer"
+        onClick={() => onLoadTheme(theme)}
+        onKeyDown={handleKeyDown}
+        role="button"
+        tabIndex={0}
+      >
         <div
           className="w-3 h-3 rounded-full border border-white/20 bg-[var(--theme-bezel)]"
           aria-label={`Bezel color: ${theme.bezelColor}`}

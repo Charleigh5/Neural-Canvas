@@ -3,25 +3,42 @@ import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from
 import { useStore } from '../store/useStore';
 import { AppMode } from '../types';
 import {
-  Upload,
   Camera,
   Layers,
   Snowflake,
   Activity,
   Grid,
   Cloud,
-  Hexagon,
   Aperture,
-  Disc,
+  FlaskConical,
+  LucideIcon,
+  LogIn, // Added
 } from 'lucide-react';
 import { GooglePhotosBrowser } from './GooglePhotosBrowser';
 import { NeuralLogo } from './ui/NeuralLogo';
+import { loadSampleData } from '../services/sampleDataService';
+import { GlobalStatusIndicator } from './GlobalStatusIndicator';
+import { LoginModal } from './LoginModal';
+import { UserProfileMenu } from './UserProfileMenu';
+import { useAuth } from '../services/authContext';
 
 export const HomeScreen: React.FC = () => {
   const { setMode, addImage, holidaySpirit, neuralTemperature, setCameraOpen } = useStore();
+  const { isAuthenticated, user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showGooglePhotos, setShowGooglePhotos] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isInjectingSamples, setIsInjectingSamples] = useState(false);
+
+  // --- SAMPLE DATA INJECTION ---
+  const handleLoadSamples = async () => {
+    if (isInjectingSamples) return;
+    setIsInjectingSamples(true);
+    await loadSampleData();
+    setIsInjectingSamples(false);
+    setMode(AppMode.CANVAS);
+  };
 
   // --- 3D PARALLAX ENGINE ---
   const x = useMotionValue(0);
@@ -54,20 +71,21 @@ export const HomeScreen: React.FC = () => {
       const fileList = Array.from(files).filter(f => f.type.startsWith('image/'));
 
       // GRID LAYOUT CONSTANTS
-      const COLS = 6;
-      const ITEM_WIDTH = 250;
-      const GAP = 40;
-      const GRID_WIDTH = Math.min(fileList.length, COLS) * (ITEM_WIDTH + GAP);
+      // Grid Layout Logic
 
-      // Start centered
-      const START_X = -(GRID_WIDTH / 2) + ITEM_WIDTH / 2;
-      const START_Y = -200;
+      const COLS = 5;
+      const ITEM_SIZE = 300;
+      const GAP = 40;
+      const START_X = 100;
+      const START_Y = 100;
 
       fileList.forEach((file: File, i) => {
         const col = i % COLS;
         const row = Math.floor(i / COLS);
-        const x = START_X + col * (ITEM_WIDTH + GAP);
-        const y = START_Y + row * (ITEM_WIDTH + GAP);
+
+        // Grid Coordinates
+        const targetX = START_X + col * (ITEM_SIZE + GAP);
+        const targetY = START_Y + row * (ITEM_SIZE + GAP);
 
         const reader = new FileReader();
         reader.onload = ev => {
@@ -75,20 +93,26 @@ export const HomeScreen: React.FC = () => {
           const imgObj = new window.Image();
           imgObj.src = src;
           imgObj.onload = () => {
-            addImage({
-              id: Math.random().toString(36).substring(2, 11),
-              url: src,
-              file: file,
-              width: ITEM_WIDTH,
-              height: ITEM_WIDTH * (imgObj.height / imgObj.width),
-              x: x,
-              y: y,
-              rotation: 0,
-              scale: 1,
-              tags: ['analyzing...'],
-              analyzed: false,
-              timestamp: Date.now(),
-            });
+            // Uniform Scaling: Scale to fit width into ITEM_SIZE
+            const scale = ITEM_SIZE / imgObj.width;
+
+            addImage(
+              {
+                id: Math.random().toString(36).substring(2, 11),
+                url: src,
+                file,
+                width: imgObj.width, // Keep original dimensions
+                height: imgObj.height, // Keep original dimensions
+                x: targetX,
+                y: targetY,
+                scale: scale, // Apply uniform scale
+                rotation: 0,
+                tags: ['upload'],
+                analyzed: false,
+                timestamp: Date.now(),
+              },
+              { skipPhysics: true }
+            ); // Disable initial physics to keep grid layout
           };
         };
         reader.readAsDataURL(file);
@@ -117,6 +141,26 @@ export const HomeScreen: React.FC = () => {
       <AnimatePresence>
         {showGooglePhotos && <GooglePhotosBrowser onClose={() => setShowGooglePhotos(false)} />}
       </AnimatePresence>
+      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
+
+      <GlobalStatusIndicator />
+
+      {/* Auth Controls - Top Right */}
+      <div className="absolute top-6 right-8 z-30">
+        {isAuthenticated && user ? (
+          <UserProfileMenu />
+        ) : (
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowLoginModal(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20 hover:text-white transition-all backdrop-blur-sm"
+          >
+            <LogIn size={16} />
+            <span className="text-sm font-medium tracking-wide">SIGN IN</span>
+          </motion.button>
+        )}
+      </div>
 
       {/* Background Atmosphere - Fixed relative to container */}
       <motion.div
@@ -128,7 +172,6 @@ export const HomeScreen: React.FC = () => {
 
         {/* Animated Star Field - CSS custom properties require style attribute */}
         {stars.map(star => (
-           
           <div
             key={star.id}
             className="star-field-item animate-pulse"
@@ -199,6 +242,7 @@ export const HomeScreen: React.FC = () => {
                 angle={-45}
                 onClick={() => setShowGooglePhotos(true)}
                 color="text-sky-400"
+                testId="btn-cloud-link"
               />
               <SatelliteButton
                 icon={Camera}
@@ -206,6 +250,7 @@ export const HomeScreen: React.FC = () => {
                 angle={45}
                 onClick={() => setCameraOpen(true)}
                 color="text-rose-400"
+                testId="btn-camera"
               />
               <SatelliteButton
                 icon={Layers}
@@ -213,6 +258,7 @@ export const HomeScreen: React.FC = () => {
                 angle={135}
                 onClick={() => setMode(AppMode.CANVAS)}
                 color="text-indigo-400"
+                testId="btn-canvas"
               />
               <SatelliteButton
                 icon={Grid}
@@ -220,6 +266,15 @@ export const HomeScreen: React.FC = () => {
                 angle={225}
                 onClick={() => setMode(AppMode.ASSETS)}
                 color="text-emerald-400"
+                testId="btn-vault"
+              />
+              <SatelliteButton
+                icon={FlaskConical}
+                label={isInjectingSamples ? 'Injecting...' : 'Test_Data'}
+                angle={-90}
+                onClick={handleLoadSamples}
+                color="text-amber-400"
+                testId="btn-test-data"
               />
 
               {/* The Iris Core */}
@@ -228,6 +283,7 @@ export const HomeScreen: React.FC = () => {
                 whileTap="tap"
                 onClick={() => fileInputRef.current?.click()}
                 className="relative w-64 h-64 flex items-center justify-center outline-none group"
+                data-testid="btn-upload"
               >
                 {/* Outer Spinner */}
                 <motion.div
@@ -328,7 +384,23 @@ export const HomeScreen: React.FC = () => {
   );
 };
 
-const SatelliteButton = ({ icon: Icon, label, angle, onClick, color }: any) => {
+interface SatelliteButtonProps {
+  icon: LucideIcon;
+  label: string;
+  angle: number;
+  onClick: () => void;
+  color: string;
+  testId?: string;
+}
+
+const SatelliteButton: React.FC<SatelliteButtonProps> = ({
+  icon: Icon,
+  label,
+  angle,
+  onClick,
+  color,
+  testId,
+}) => {
   const radius = 180; // Distance from center
   const x = Math.cos((angle * Math.PI) / 180) * radius;
   const y = Math.sin((angle * Math.PI) / 180) * radius;
@@ -353,6 +425,7 @@ const SatelliteButton = ({ icon: Icon, label, angle, onClick, color }: any) => {
       whileTap={{ scale: 0.95 }}
       className="absolute flex flex-col items-center gap-2 group z-30"
       style={buttonStyle}
+      data-testid={testId}
     >
       <div
         className={`w-16 h-16 rounded-full bg-[#0a0a0a] border border-white/10 flex items-center justify-center shadow-xl group-hover:border-white/30 transition-colors relative overflow-hidden`}

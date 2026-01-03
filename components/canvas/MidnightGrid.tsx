@@ -3,6 +3,15 @@ import { Shape } from 'react-konva';
 
 const GRID_SIZE = 100;
 
+interface MidnightGridProps {
+  scale: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  isInteracting: boolean;
+}
+
 export const MidnightGrid = React.memo(function MidnightGrid({
   scale,
   x,
@@ -10,7 +19,7 @@ export const MidnightGrid = React.memo(function MidnightGrid({
   width,
   height,
   isInteracting,
-}: any) {
+}: MidnightGridProps) {
   return (
     <Shape
       x={0}

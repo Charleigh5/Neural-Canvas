@@ -116,14 +116,12 @@ export const ThemePreviewModal: React.FC<ThemePreviewModalProps> = ({ onClose })
           {/* Dynamic theme-specific bezel styling with computed border and boxShadow */}
           <div
             className="relative aspect-video w-[80%] bg-black rounded-xl overflow-hidden z-10 transition-all duration-500"
-            // eslint-disable-next-line react/forbid-dom-props -- Dynamic border/boxShadow from theme config
             style={getBezelStyles()}
           >
             {/* Custom Bezel Texture Overlay */}
             {customBezelStyle && (
               <div
                 className="absolute inset-0 z-[60] pointer-events-none border-[12px] border-transparent rounded-xl"
-                // eslint-disable-next-line react/forbid-dom-props -- borderImageSource, maskComposite not in Tailwind
                 style={customBezelStyle}
               />
             )}

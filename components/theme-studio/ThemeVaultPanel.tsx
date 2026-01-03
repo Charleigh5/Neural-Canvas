@@ -18,12 +18,16 @@ export const ThemeVaultPanel: React.FC<ThemeVaultPanelProps> = ({
 }) => {
   return (
     <div className="w-72 border-r border-white/10 bg-[#050505] flex flex-col">
-      <div className="p-6 border-b border-white/5">
+      <div className="p-6 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent">
         <div className="flex items-center gap-2 mb-1">
           <Library className="text-emerald-500" size={18} />
-          <h2 className="text-xs font-black text-white uppercase tracking-[0.2em]">Theme_Vault</h2>
+          <h2 className="text-xs font-black text-white uppercase tracking-[0.2em] shadow-emerald-500/20 drop-shadow-sm">
+            Theme_Vault
+          </h2>
         </div>
-        <p className="text-[9px] text-slate-500 font-mono">Persisted Configurations</p>
+        <p className="text-[9px] text-slate-500 font-mono tracking-wide">
+          Persisted Configurations
+        </p>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">

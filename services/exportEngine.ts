@@ -1,8 +1,9 @@
 /**
  * EXPORTENGINE.TS
  * High-performance capture system for STUDIO.OS.
- * Merges DOM-rendered frames and Web Audio Master Bus into a production-grade video.
- * Uses html2canvas for visual capture and MediaRecorder for encoding.
+ * Provides two capture modes:
+ * 1. Screen Share (getDisplayMedia) - High fidelity, user selects tab
+ * 2. DOM Capture (html2canvas) - Automated but slower
  */
 
 import html2canvas from 'html2canvas';
@@ -15,6 +16,8 @@ export interface ExportOptions {
   format: 'webm' | 'mp4';
 }
 
+export type CaptureMode = 'screen' | 'dom';
+
 export class ExportEngine {
   private recorder: MediaRecorder | null = null;
   private chunks: Blob[] = [];
@@ -23,7 +26,84 @@ export class ExportEngine {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationId: number | null = null;
   private isRecording = false;
+  private onCompleteCallback: ((blob: Blob) => void) | null = null;
 
+  /**
+   * Start screen-share based capture (high fidelity)
+   * User will be prompted to select "This Tab" for capture
+   */
+  async startScreenCapture(
+    options: Pick<ExportOptions, 'bitrate' | 'filename'>,
+    onComplete: (blob: Blob) => void,
+    onError?: (error: Error) => void
+  ): Promise<void> {
+    try {
+      this.chunks = [];
+      this.isRecording = true;
+      this.onCompleteCallback = onComplete;
+
+      // Request screen capture - prompts user to select tab
+      this.stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          displaySurface: 'browser',
+          frameRate: 30,
+        },
+        audio: false, // Can enable for system audio capture
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      // Handle user stopping share via browser UI
+      this.stream.getVideoTracks()[0].onended = () => {
+        this.stopScreenCapture();
+      };
+
+      // Initialize recorder
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+        ? 'video/webm;codecs=vp9'
+        : 'video/webm';
+
+      this.recorder = new MediaRecorder(this.stream, {
+        mimeType,
+        videoBitsPerSecond: options.bitrate,
+      });
+
+      this.recorder.ondataavailable = e => {
+        if (e.data.size > 0) this.chunks.push(e.data);
+      };
+
+      this.recorder.onstop = () => {
+        const finalBlob = new Blob(this.chunks, { type: 'video/webm' });
+        if (this.onCompleteCallback) {
+          this.onCompleteCallback(finalBlob);
+        }
+        this.cleanup();
+      };
+
+      this.recorder.start(100);
+    } catch (error) {
+      this.cleanup();
+      if (onError && error instanceof Error) {
+        onError(error);
+      } else {
+        console.error('Screen capture failed:', error);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Stop screen capture and finalize recording
+   */
+  stopScreenCapture() {
+    this.isRecording = false;
+    if (this.recorder && this.recorder.state !== 'inactive') {
+      this.recorder.stop();
+    }
+  }
+
+  /**
+   * DOM-based capture using html2canvas (slower but automated)
+   */
   async startCapture(
     options: ExportOptions,
     onComplete: (blob: Blob) => void,
@@ -115,6 +195,12 @@ export class ExportEngine {
     if (this.stream) this.stream.getTracks().forEach(track => track.stop());
     this.canvas = null;
     this.ctx = null;
+    this.onCompleteCallback = null;
+  }
+
+  /** Check if screen capture is supported */
+  static isScreenCaptureSupported(): boolean {
+    return 'getDisplayMedia' in navigator.mediaDevices;
   }
 }
 

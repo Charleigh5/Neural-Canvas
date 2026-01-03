@@ -62,12 +62,11 @@ export const DigitalFrost = ({ active }: { active: boolean }) => {
   if (frost === 0) return null;
 
   return (
-    /* eslint-disable react/forbid-dom-props */
+    // CSS custom property for dynamic opacity - inline style required, not available in Tailwind
     <div
       className="absolute inset-0 pointer-events-none z-[60] mix-blend-screen transition-opacity duration-1000 opacity-[var(--frost-opacity)]"
       style={{ '--frost-opacity': frost } as React.CSSProperties}
     >
-      {/* eslint-enable react/forbid-dom-props */}
       {/* Edge Frost */}
       <div className="absolute inset-0 shadow-[inset_0_0_100px_rgba(255,255,255,0.8)] blur-[20px]" />
       <div className="absolute top-0 left-0 w-64 h-64 bg-[url('https://www.transparenttextures.com/patterns/pinstriped-suit.png')] rotate-45 opacity-60 scale-150" />
@@ -94,8 +93,8 @@ export const ChimneyVents = ({ theme, config }: { theme: BezelTheme; config?: Th
 
   return (
     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-64 h-32 z-[5] pointer-events-none overflow-hidden flex justify-center">
+      {/* CSS custom properties for dynamic animation - inline style required for runtime values */}
       {smokeParticles.map((particle, i) => (
-        /* eslint-disable react/forbid-dom-props */
         <div
           key={i}
           className="w-10 h-10 bg-white/10 rounded-full blur-2xl absolute bottom-0 animate-smoke left-[var(--smoke-left)]"
@@ -107,7 +106,6 @@ export const ChimneyVents = ({ theme, config }: { theme: BezelTheme; config?: Th
             } as React.CSSProperties
           }
         />
-        /* eslint-enable react/forbid-dom-props */
       ))}
     </div>
   );
@@ -143,8 +141,8 @@ export const FallingSnow = ({
 
   return (
     <div className="absolute inset-0 z-50 pointer-events-none overflow-hidden">
+      {/* CSS custom properties for snowflake dimensions - inline style required for runtime values */}
       {snowflakes.map((flake, i) => (
-        /* eslint-disable react/forbid-dom-props */
         <div
           key={i}
           className="absolute bg-white rounded-full animate-snowfall w-[var(--snow-size)] h-[var(--snow-size)] left-[var(--snow-left)] opacity-[var(--snow-opacity)] -top-1"
@@ -158,7 +156,6 @@ export const FallingSnow = ({
             } as React.CSSProperties
           }
         />
-        /* eslint-enable react/forbid-dom-props */
       ))}
     </div>
   );
