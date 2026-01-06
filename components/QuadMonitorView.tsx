@@ -230,30 +230,40 @@ export const QuadMonitorView: React.FC = () => {
 
   if (!currentAsset)
     return (
-      <div className="w-full h-full flex items-center justify-center bg-black text-slate-500 font-mono text-xs tracking-widest uppercase relative">
+      <div className="w-full h-full flex items-center justify-center bg-black/95 text-slate-500 font-mono text-xs tracking-widest uppercase relative glass-panel">
         {initError ? (
-          <div className="flex flex-col items-center gap-6 p-8 border border-rose-900/50 bg-rose-950/20 rounded-2xl animate-in fade-in slide-in-from-bottom-4">
-            <AlertTriangle size={48} className="text-rose-500 mb-2" />
+          <div className="flex flex-col items-center gap-6 p-10 border border-rose-900/50 bg-rose-950/10 rounded-3xl animate-in fade-in slide-in-from-bottom-4 shadow-[0_0_50px_rgba(244,63,94,0.1)]">
+            <AlertTriangle
+              size={56}
+              className="text-rose-500 mb-2 drop-shadow-[0_0_15px_rgba(244,63,94,0.5)]"
+            />
             <div className="text-center space-y-2">
-              <div className="text-rose-400 font-bold text-sm">Projection System Failure</div>
-              <div className="text-rose-500/60 text-[10px]">
+              <div className="text-rose-400 font-black text-base tracking-widest uppercase border-b border-rose-500/30 pb-2">
+                Projection System Failure
+              </div>
+              <div className="text-rose-500/80 text-[10px] bg-rose-950/30 px-3 py-1 rounded-full border border-rose-500/20">
                 Asset pipeline disconnected or reel is empty.
               </div>
             </div>
             <button
               onClick={() => setMode(AppMode.CANVAS)}
-              className="px-6 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-full flex items-center gap-2 transition-all shadow-lg hover:shadow-rose-500/20"
+              className="px-8 py-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-rose-900/40 hover:scale-105 active:scale-95 text-[10px] font-black uppercase tracking-widest"
             >
-              <CornerDownLeft size={14} /> Return to Canvas
+              <CornerDownLeft size={16} /> Return to Canvas
             </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-slate-800 border-t-indigo-500 rounded-full animate-spin" />
-            Initializing Theater...
+          <div className="flex flex-col items-center gap-6">
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-slate-800 border-t-indigo-500 rounded-full animate-spin" />
+              <div className="absolute inset-0 border-4 border-indigo-500/20 rounded-full animate-pulse" />
+            </div>
+
+            <span className="text-indigo-400 font-bold animate-pulse">Initializing Theater...</span>
+
             <button
               onClick={() => setInitError(true)}
-              className="absolute bottom-12 text-[9px] text-slate-700 hover:text-slate-500 flex items-center gap-1"
+              className="absolute bottom-12 text-[9px] text-slate-700 hover:text-rose-500 flex items-center gap-2 transition-colors border border-transparent hover:border-rose-900/30 px-3 py-1 rounded-full"
             >
               <RefreshCw size={10} /> Force Timeout
             </button>
@@ -373,44 +383,49 @@ export const QuadMonitorView: React.FC = () => {
       </div>
 
       {/* --- PLAYER CONTROLS --- */}
-      <div className="absolute top-0 right-0 p-6 z-[100] flex gap-4 opacity-0 hover:opacity-100 transition-opacity">
-        {/* Mode Cycler */}
-        <div className="relative group">
-          <button
-            onClick={cyclePerspective}
-            className="w-12 h-12 bg-black/60 backdrop-blur-md rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-black/80 transition-all border border-white/10"
-            aria-label="Cycle camera perspective"
-            title="Cycle camera perspective"
-          >
-            <currentModeInfo.icon size={20} />
-          </button>
-          <div className="absolute top-1/2 right-14 -translate-y-1/2 bg-black/80 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-            CAM: {currentModeInfo.label}
+      <div className="absolute top-8 right-8 z-[100] flex flex-col gap-3 group/controls">
+        <div className="glass-panel p-2 rounded-2xl flex flex-col gap-3 opacity-0 group-hover/controls:opacity-100 transition-all duration-500 translate-x-10 group-hover/controls:translate-x-0 shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-white/10 backdrop-blur-2xl">
+          {/* Mode Cycler */}
+          <div className="relative group/mode w-full flex justify-end">
+            <button
+              onClick={cyclePerspective}
+              className="w-10 h-10 glass-button rounded-xl flex items-center justify-center text-slate-300 hover:text-white"
+              aria-label="Cycle camera perspective"
+              title="Cycle camera perspective"
+            >
+              <currentModeInfo.icon size={18} />
+            </button>
+            <div className="absolute top-1/2 right-12 -translate-y-1/2 bg-black/90 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-white/10 opacity-0 group-hover/mode:opacity-100 transition-opacity whitespace-nowrap shadow-xl transform scale-90 group-hover/mode:scale-100 pointer-events-none">
+              CAM: {currentModeInfo.label}
+            </div>
           </div>
-        </div>
 
-        <button
-          onClick={() => setShowConfig(true)}
-          className="w-12 h-12 bg-black/60 backdrop-blur-md rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-black/80 transition-all border border-white/10"
-          aria-label="Open settings"
-          title="Open settings"
-        >
-          <Settings size={20} />
-        </button>
-        <button
-          onClick={togglePlayback}
-          className="w-12 h-12 bg-indigo-600/80 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-indigo-500 transition-all shadow-lg"
-        >
-          {isPlaying ? <Pause size={20} /> : <Play size={20} fill="currentColor" />}
-        </button>
-        <button
-          onClick={() => setMode(AppMode.CANVAS)}
-          className="w-12 h-12 bg-rose-600/80 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-rose-500 transition-all shadow-lg"
-          aria-label="Exit theater mode"
-          title="Exit theater mode"
-        >
-          <X size={20} />
-        </button>
+          <button
+            onClick={() => setShowConfig(true)}
+            className="w-10 h-10 glass-button rounded-xl flex items-center justify-center text-slate-300 hover:text-white"
+            aria-label="Open settings"
+            title="Open settings"
+          >
+            <Settings size={18} />
+          </button>
+
+          <div className="h-px w-full bg-white/10" />
+
+          <button
+            onClick={togglePlayback}
+            className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg transition-all ${isPlaying ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20' : 'bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/20'}`}
+          >
+            {isPlaying ? <Pause size={18} /> : <Play size={18} fill="currentColor" />}
+          </button>
+          <button
+            onClick={() => setMode(AppMode.CANVAS)}
+            className="w-10 h-10 bg-rose-600/10 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-600/30 rounded-xl flex items-center justify-center transition-all shadow-lg"
+            aria-label="Exit theater mode"
+            title="Exit theater mode"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
     </div>
   );

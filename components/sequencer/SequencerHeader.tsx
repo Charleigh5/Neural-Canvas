@@ -54,7 +54,7 @@ export const SequencerHeader: React.FC<SequencerHeaderProps> = ({
   const isReelEmpty = reelLength === 0;
 
   return (
-    <div className="h-14 border-b border-indigo-500/10 flex items-center justify-between px-8 bg-black/40 backdrop-blur-3xl shrink-0 z-20 relative">
+    <div className="h-16 border-b border-white/5 flex items-center justify-between px-8 glass-panel shrink-0 z-20 relative">
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
           <Sparkles size={16} className="text-indigo-400 animate-pulse" />
@@ -63,27 +63,29 @@ export const SequencerHeader: React.FC<SequencerHeaderProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center bg-white/5 rounded-full p-1 px-3 gap-3 border border-white/5">
+        <div className="flex items-center glass-button rounded-full p-1 px-3 gap-3 cursor-default hover:bg-white/5">
           <button
             onClick={onTogglePlayback}
-            className="text-indigo-400 hover:text-white transition-colors"
+            className="text-indigo-400 hover:text-white transition-colors p-1"
             aria-label={isPlaying ? 'Pause' : 'Play'}
             data-testid="btn-playback-toggle"
           >
             {isPlaying ? <Pause size={16} /> : <Play size={16} />}
           </button>
-          <span className="text-[10px] font-mono text-slate-500 tracking-widest">
+          <span className="text-[10px] font-mono text-slate-500 tracking-widest border-l border-white/10 pl-3">
             {reelLength} PACKETS
           </span>
         </div>
 
-        <div className="h-6 w-px bg-white/10" />
+        <div className="h-6 w-px bg-white/5" />
 
         <div className="flex items-center gap-2">
           <button
             onClick={onToggleLibrary}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
-              isLibraryOpen ? 'bg-indigo-600 text-white' : 'hover:bg-white/5 text-slate-400'
+              isLibraryOpen
+                ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30'
+                : 'glass-button text-slate-400 hover:text-white'
             }`}
           >
             <FolderOpen size={14} />{' '}
@@ -91,14 +93,14 @@ export const SequencerHeader: React.FC<SequencerHeaderProps> = ({
           </button>
           <button
             onClick={onOpenGooglePhotos}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 text-slate-400 transition-all"
+            className="flex items-center gap-2 px-3 py-1.5 glass-button text-slate-400 hover:text-white transition-all rounded-lg"
           >
             <Cloud size={14} />{' '}
             <span className="text-[9px] font-black uppercase tracking-wider">Cloud</span>
           </button>
           <button
             onClick={onSave}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 text-slate-400 transition-all"
+            className="flex items-center gap-2 px-3 py-1.5 glass-button text-slate-400 hover:text-white transition-all rounded-lg disabled:opacity-50"
             disabled={isReelEmpty}
           >
             <Save size={14} />{' '}
@@ -106,7 +108,7 @@ export const SequencerHeader: React.FC<SequencerHeaderProps> = ({
           </button>
           <button
             onClick={onExport}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 text-slate-400 transition-all"
+            className="flex items-center gap-2 px-3 py-1.5 glass-button text-slate-400 hover:text-white transition-all rounded-lg disabled:opacity-50"
             disabled={isReelEmpty}
             data-testid="btn-export"
           >
@@ -126,7 +128,7 @@ export const SequencerHeader: React.FC<SequencerHeaderProps> = ({
         <button
           onClick={onOrchestrate}
           disabled={reelLength < 2 || neuralTemperature > 0}
-          className="flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-indigo-500/20 to-fuchsia-500/20 border border-indigo-500/30 rounded-full text-indigo-300 hover:text-white transition-all disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-indigo-500/10 to-fuchsia-500/10 border border-indigo-500/30 rounded-full text-indigo-300 hover:text-white hover:border-indigo-500/50 transition-all disabled:opacity-50 hover:shadow-[0_0_15px_rgba(99,102,241,0.2)]"
         >
           {neuralTemperature > 0 ? (
             <Loader2 size={14} className="animate-spin" />
@@ -138,7 +140,7 @@ export const SequencerHeader: React.FC<SequencerHeaderProps> = ({
 
         <button
           onClick={onOpenThemeStudio}
-          className="flex items-center gap-2 px-4 py-1.5 bg-white/5 hover:bg-white/10 text-indigo-300 rounded-full border border-indigo-500/20 transition-all"
+          className="flex items-center gap-2 px-4 py-1.5 glass-button text-indigo-300 rounded-full transition-all"
           data-testid="btn-themes"
         >
           <Palette size={14} />
@@ -146,7 +148,7 @@ export const SequencerHeader: React.FC<SequencerHeaderProps> = ({
         </button>
         <button
           onClick={onPreview}
-          className="flex items-center gap-2 px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded-full border border-cyan-500/30 transition-all"
+          className="flex items-center gap-2 px-4 py-1.5 glass-button text-cyan-400 rounded-full transition-all border-cyan-500/20 hover:border-cyan-500/50"
           disabled={isReelEmpty}
           data-testid="btn-preview"
         >
@@ -157,11 +159,11 @@ export const SequencerHeader: React.FC<SequencerHeaderProps> = ({
           onClick={onPlayReel}
           disabled={isReelEmpty}
           className={`
-            text-[10px] font-black tracking-[0.2em] px-8 py-2 rounded-full transition-all uppercase shadow-[0_0_30px_rgba(79,70,229,0.3)]
+            text-[10px] font-black tracking-[0.2em] px-6 py-2 rounded-full transition-all uppercase shadow-[0_0_20px_rgba(79,70,229,0.3)]
             ${
               isReelEmpty
-                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5 opacity-50'
-                : 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer'
+                ? 'bg-white/5 text-slate-600 cursor-not-allowed border border-white/5 opacity-50 shadow-none'
+                : 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]'
             }
           `}
           data-testid="btn-play-reel"

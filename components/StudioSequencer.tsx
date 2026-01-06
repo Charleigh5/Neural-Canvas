@@ -44,7 +44,6 @@ export const StudioSequencer = () => {
 
   // Save State
   const [isSaving, setIsSaving] = useState(false);
-  // removed legacy save state
 
   const [showGooglePhotos, setShowGooglePhotos] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -122,14 +121,11 @@ export const StudioSequencer = () => {
     [reanalyzeImage, performUpscale, applySmartCrop, duplicateImage, updateImage, performImageEdit]
   );
 
-  // Drag handlers replaced by hook
-  // Save handlers moved to SaveReelModal
-
   const isReelEmpty = localReel.length === 0;
 
   return (
     <div
-      className="w-full h-full flex flex-col text-slate-300 select-none bg-[#050508] relative"
+      className="w-full h-full flex flex-col text-slate-300 select-none bg-black/95 relative border-t border-white/5"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -146,12 +142,17 @@ export const StudioSequencer = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 bg-indigo-500/20 backdrop-blur-sm border-2 border-dashed border-indigo-400 flex flex-col items-center justify-center pointer-events-none"
+            className="absolute inset-0 z-50 bg-indigo-950/40 backdrop-blur-md border-4 border-dashed border-indigo-400/50 flex flex-col items-center justify-center pointer-events-none"
           >
-            <UploadCloud size={48} className="text-indigo-300 animate-bounce mb-2" />
-            <span className="text-sm font-black text-white uppercase tracking-[0.2em]">
-              Drop to Append to Reel
-            </span>
+            <div className="bg-black/80 p-8 rounded-3xl border border-indigo-500/30 shadow-[0_0_50px_rgba(99,102,241,0.3)] animate-pulse flex flex-col items-center">
+              <UploadCloud size={64} className="text-indigo-400 mb-4" />
+              <span className="text-xl font-black text-white uppercase tracking-[0.2em]">
+                Drop Asset to Append
+              </span>
+              <span className="text-xs font-mono text-indigo-300 mt-2">
+                Integrating into Neural Sequence...
+              </span>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -186,7 +187,7 @@ export const StudioSequencer = () => {
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-x-auto custom-scrollbar flex items-center px-12 py-4 relative z-10 bg-[#08080a]"
+        className="flex-1 overflow-x-auto custom-scrollbar flex items-center px-12 py-4 relative z-10 bg-gradient-to-b from-black/50 to-transparent"
         data-testid="sequencer-timeline"
       >
         <Reorder.Group
@@ -216,21 +217,21 @@ export const StudioSequencer = () => {
             );
           })}
           {isReelEmpty ? (
-            <div className="flex-1 flex flex-col items-center justify-center py-20 min-w-[300px] border-2 border-dashed border-white/5 rounded-3xl mx-12 z-20 mb-20 bg-black/50 backdrop-blur-sm">
+            <div className="flex-1 flex flex-col items-center justify-center py-20 min-w-[400px] border-2 border-dashed border-white/5 rounded-3xl mx-auto z-20 mb-10 glass-panel">
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col items-center text-center max-w-md"
+                className="flex flex-col items-center text-center max-w-md p-8"
               >
-                <div className="w-20 h-20 bg-indigo-500/10 rounded-full flex items-center justify-center mb-6">
-                  <Film size={40} className="text-indigo-400/60" />
+                <div className="w-24 h-24 bg-indigo-500/10 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(99,102,241,0.1)]">
+                  <Film size={40} className="text-indigo-400" />
                 </div>
-                <h3 className="text-lg font-black text-white uppercase tracking-wider mb-2">
+                <h3 className="text-xl font-black text-white uppercase tracking-wider mb-3">
                   Timeline Empty
                 </h3>
-                <p className="text-xs text-slate-500 font-mono mb-8 leading-relaxed uppercase tracking-tight">
+                <p className="text-xs text-slate-400 font-mono mb-8 leading-relaxed uppercase tracking-tight max-w-xs mx-auto">
                   Your narrative sequence is currently unmapped. <br />
-                  Drag assets here or use the tools below to initialize.
+                  Drag assets here or engage the Neural Director below.
                 </p>
 
                 <div className="flex gap-4">
@@ -245,10 +246,10 @@ export const StudioSequencer = () => {
                           .addCouncilLog('No assets found on canvas to add.', 'warn');
                       }
                     }}
-                    className="px-6 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-indigo-300 transition-all"
+                    className="glass-button px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-indigo-300 hover:text-white transition-all"
                     data-testid="btn-add-all-from-canvas"
                   >
-                    Add All From Canvas
+                    Import Canvas Assets
                   </button>
                   <button
                     onClick={async () => {
@@ -263,7 +264,7 @@ export const StudioSequencer = () => {
                           .addCouncilLog('Add some images to the canvas first!', 'info');
                       }
                     }}
-                    className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all flex items-center gap-2"
+                    className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all flex items-center gap-2 hover:scale-105 active:scale-95"
                     data-testid="btn-auto-orchestrate"
                   >
                     Auto-Orchestrate
@@ -272,8 +273,8 @@ export const StudioSequencer = () => {
               </motion.div>
             </div>
           ) : (
-            <div className="h-32 w-16 border-2 border-dashed border-white/10 rounded-xl flex items-center justify-center text-slate-600 hover:text-white hover:border-white/30 transition-colors shrink-0 cursor-pointer">
-              <Plus size={24} />
+            <div className="h-44 w-16 border-2 border-dashed border-white/5 hover:border-indigo-500/30 hover:bg-white/5 rounded-2xl flex items-center justify-center text-slate-600 hover:text-indigo-400 transition-all shrink-0 cursor-pointer group">
+              <Plus size={24} className="group-hover:scale-125 transition-transform" />
             </div>
           )}
         </Reorder.Group>

@@ -65,8 +65,8 @@ export const NeuralLogo: React.FC = () => {
             style={{
               textShadow:
                 char === '.'
-                  ? '0 0 30px rgba(99, 102, 241, 0.9)'
-                  : '0 0 50px rgba(255, 255, 255, 0.2)',
+                  ? '0 0 40px rgba(99, 102, 241, 1), 0 0 80px rgba(99, 102, 241, 0.5)'
+                  : '0 0 30px rgba(255, 255, 255, 0.4), 0 0 60px rgba(255, 255, 255, 0.1)',
             }}
           >
             {char}

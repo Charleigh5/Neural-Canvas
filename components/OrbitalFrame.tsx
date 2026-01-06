@@ -37,7 +37,11 @@ const TelemetryItem = ({
     <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
       {label}
     </span>
-    <span className={`text-xs font-mono font-bold ${color}`}>{value}</span>
+    <span
+      className={`text-xs font-mono font-bold ${color} drop-shadow-[0_0_5px_rgba(255,255,255,0.1)]`}
+    >
+      {value}
+    </span>
   </div>
 );
 
@@ -193,28 +197,35 @@ export const OrbitalFrame: React.FC<OrbitalFrameProps> = ({ children }) => {
   ]);
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-black text-white flex flex-col">
+    <div className="relative w-screen h-screen overflow-hidden bg-black text-white flex flex-col font-sans">
       {/* --- COMMAND DECK (HEADER) --- */}
       {mode !== AppMode.PLAYER && (
-        <div className="h-14 border-b border-white/10 bg-[#050505]/80 backdrop-blur-md flex items-center justify-between px-6 z-50 shrink-0">
+        <div className="h-16 px-6 z-50 shrink-0 flex items-center justify-between glass-panel border-b border-white/5 relative">
           {/* LEFT: SYSTEM STATUS */}
           <div className="flex items-center gap-6 w-1/3">
-            <div className="flex items-center gap-2">
-              <Menu
-                size={18}
-                className="text-slate-400 hover:text-white cursor-pointer"
-                onClick={() => toggleUiPanel('isSidebarOpen')}
-              />
-              <span className="text-[10px] font-black tracking-[0.2em] uppercase text-white/80">
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-2 cursor-pointer group"
+              onClick={() => toggleUiPanel('isSidebarOpen')}
+            >
+              <div className="p-2 glass-button rounded-lg text-slate-400 group-hover:text-white transition-colors">
+                <Menu size={18} />
+              </div>
+              <span className="text-[10px] font-black tracking-[0.2em] uppercase text-white/80 group-hover:text-indigo-400 transition-colors">
                 Studio.OS
               </span>
-            </div>
-            <div className="h-4 w-px bg-white/10" />
-            <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5">
+            </motion.div>
+            <div className="h-8 w-px bg-white/5" />
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-500 ${neuralTemperature > 0 ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-emerald-500/10 border-emerald-500/30'}`}
+            >
               <div
-                className={`w-1.5 h-1.5 rounded-full ${neuralTemperature > 0 ? 'bg-indigo-500 animate-pulse' : 'bg-emerald-500'}`}
+                className={`w-1.5 h-1.5 rounded-full ${neuralTemperature > 0 ? 'bg-indigo-500 animate-pulse shadow-[0_0_8px_#6366f1]' : 'bg-emerald-500 shadow-[0_0_8px_#10b981]'}`}
               />
-              <span className="text-[8px] font-mono text-slate-400 uppercase">
+              <span
+                className={`text-[9px] font-mono uppercase tracking-tight ${neuralTemperature > 0 ? 'text-indigo-300' : 'text-emerald-400'}`}
+              >
                 {neuralTemperature > 0 ? 'Processing...' : 'System_Ready'}
               </span>
             </div>
@@ -224,10 +235,10 @@ export const OrbitalFrame: React.FC<OrbitalFrameProps> = ({ children }) => {
           <div className="flex-1 flex justify-center">
             <div className="relative w-96 group">
               <div
-                className={`absolute inset-0 bg-indigo-500/20 rounded-full blur-xl transition-opacity ${isSemanticSearchActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                className={`absolute inset-0 bg-indigo-500/20 rounded-full blur-xl transition-opacity duration-500 ${isSemanticSearchActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-40'}`}
               />
               <div
-                className={`relative bg-black/50 border rounded-full flex items-center px-4 py-2 gap-3 transition-all ${isSemanticSearchActive ? 'border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'border-white/10 group-hover:border-indigo-500/30'}`}
+                className={`relative glass-input rounded-full flex items-center px-4 py-2.5 gap-3 transition-all duration-300 ${isSemanticSearchActive ? 'border-indigo-500/50 shadow-[0_0_20px_rgba(99,102,241,0.2)] bg-black/60' : 'group-hover:border-indigo-500/30'}`}
               >
                 <Search
                   size={14}
@@ -243,7 +254,7 @@ export const OrbitalFrame: React.FC<OrbitalFrameProps> = ({ children }) => {
                       ? `${searchResults.length} Results Found`
                       : 'Search assets, tags, or neural commands...'
                   }
-                  className="bg-transparent border-none outline-none text-[10px] font-mono text-white placeholder-slate-600 w-full"
+                  className="bg-transparent border-none outline-none text-[11px] font-mono text-white placeholder-slate-600 w-full"
                 />
                 {isSemanticSearchActive ? (
                   <button
@@ -251,14 +262,14 @@ export const OrbitalFrame: React.FC<OrbitalFrameProps> = ({ children }) => {
                       setSearchQuery('');
                       clearSearch();
                     }}
-                    className="text-slate-500 hover:text-white"
+                    className="text-slate-500 hover:text-white transition-colors"
                     aria-label="Clear search"
                     title="Clear search"
                   >
                     <X size={12} />
                   </button>
                 ) : (
-                  <div className="text-[8px] font-black text-slate-700 border border-slate-800 px-1.5 rounded bg-black">
+                  <div className="text-[8px] font-black text-slate-700 border border-slate-800 px-1.5 py-0.5 rounded bg-black/50">
                     ENTER
                   </div>
                 )}
@@ -267,14 +278,14 @@ export const OrbitalFrame: React.FC<OrbitalFrameProps> = ({ children }) => {
           </div>
 
           {/* RIGHT: ACTIONS & TELEMETRY */}
-          <div className="flex items-center justify-end gap-4 w-1/3">
-            <div className="hidden md:flex items-center gap-4 bg-black/40 px-4 py-1.5 rounded-full border border-white/5">
+          <div className="flex items-center justify-end gap-5 w-1/3">
+            <div className="hidden md:flex items-center gap-5 glass-panel px-5 py-2 rounded-full border border-white/5">
               <TelemetryItem
                 label="NEURAL"
                 value={`${Math.round(neuralTemperature)}%`}
                 color="text-indigo-400"
               />
-              <div className="w-px h-3 bg-white/10" />
+              <div className="w-px h-4 bg-white/10" />
               <TelemetryItem
                 label="SPIRIT"
                 value={`${Math.round(holidaySpirit)}%`}
@@ -282,22 +293,24 @@ export const OrbitalFrame: React.FC<OrbitalFrameProps> = ({ children }) => {
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {/* LIVE DIRECTOR TOGGLE */}
               <motion.button
                 onClick={() => toggleUiPanel('isLiveActive')}
                 whileHover={{ scale: 1.05 }}
-                className={`p-2 rounded-full transition-colors border ${ui.isLiveActive ? 'bg-rose-500/10 text-rose-400 border-rose-500/50 animate-pulse' : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'}`}
+                whileTap={{ scale: 0.95 }}
+                className={`p-2.5 rounded-full transition-all border ${ui.isLiveActive ? 'bg-rose-500/20 text-rose-400 border-rose-500/50 shadow-[0_0_15px_rgba(244,63,94,0.3)] animate-pulse' : 'glass-button text-slate-400 hover:text-white'}`}
               >
-                {ui.isLiveActive ? <Mic size={16} /> : <MicOff size={16} />}
+                {ui.isLiveActive ? <Mic size={18} /> : <MicOff size={18} />}
               </motion.button>
 
               <motion.button
                 onClick={() => toggleUiPanel('isThemeStudioOpen')}
                 whileHover={{ scale: 1.05 }}
-                className="p-2 text-indigo-300 hover:text-white bg-indigo-500/10 hover:bg-indigo-500/20 rounded-full transition-colors border border-indigo-500/20"
+                whileTap={{ scale: 0.95 }}
+                className="p-2.5 glass-button text-indigo-300 hover:text-white hover:bg-indigo-500/20 hover:border-indigo-500/30 rounded-full transition-all"
               >
-                <Palette size={16} />
+                <Palette size={18} />
               </motion.button>
 
               <motion.button
@@ -308,16 +321,16 @@ export const OrbitalFrame: React.FC<OrbitalFrameProps> = ({ children }) => {
                 whileTap={{ scale: 0.95 }}
                 disabled={reel.length === 0}
                 className={`
-                                    flex items-center gap-2 px-4 py-2 rounded-full transition-all shadow-lg
+                                    flex items-center gap-2 px-5 py-2.5 rounded-full transition-all shadow-lg
                                     ${
                                       reel.length > 0
-                                        ? 'bg-emerald-500/10 border border-emerald-500 text-emerald-400 hover:bg-emerald-500 hover:text-white shadow-[0_0_20px_rgba(16,185,129,0.2)]'
-                                        : 'bg-white/5 border border-white/10 text-slate-600 cursor-not-allowed'
+                                        ? 'bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:bg-emerald-400'
+                                        : 'glass-button opacity-50 cursor-not-allowed text-slate-500'
                                     }
                                 `}
               >
                 <Play size={12} fill="currentColor" />
-                <span className="text-[9px] font-black uppercase tracking-widest">Play</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">Play</span>
               </motion.button>
             </div>
           </div>
@@ -335,11 +348,10 @@ export const OrbitalFrame: React.FC<OrbitalFrameProps> = ({ children }) => {
           {ui.isInspectorOpen && mode === AppMode.CANVAS && (
             <motion.div
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 320, opacity: 1 }}
+              animate={{ width: 340, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
-              className="h-full border-l border-white/10 bg-[#050505] z-10 flex flex-col shadow-2xl relative"
+              className="h-full z-10 flex flex-col relative"
             >
-              <div className="absolute top-0 left-0 bottom-0 w-px bg-indigo-500/20 shadow-[0_0_10px_#6366f1]" />
               <InspectorPanel />
             </motion.div>
           )}
@@ -351,7 +363,7 @@ export const OrbitalFrame: React.FC<OrbitalFrameProps> = ({ children }) => {
         {ui.isTimelineOpen && mode === AppMode.CANVAS && (
           <motion.div
             initial={{ height: 0 }}
-            animate={{ height: 220 }}
+            animate={{ height: 260 }}
             exit={{ height: 0 }}
             className="border-t border-white/10 bg-[#08080a] z-20 shrink-0 relative shadow-[0_-10px_30px_rgba(0,0,0,0.5)]"
           >
