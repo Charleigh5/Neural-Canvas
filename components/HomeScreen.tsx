@@ -24,7 +24,7 @@ import { useAuth } from '../services/authContext';
 
 export const HomeScreen: React.FC = () => {
   const { setMode, addImage, holidaySpirit, neuralTemperature, setCameraOpen } = useStore();
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showGooglePhotos, setShowGooglePhotos] = useState(false);
@@ -87,20 +87,19 @@ export const HomeScreen: React.FC = () => {
           imgObj.src = src;
           imgObj.onload = () => {
             const scale = ITEM_SIZE / imgObj.width;
-            addImage(
-              {
-                id: crypto.randomUUID(),
-                url: src,
-                x: targetX,
-                y: targetY,
-                width: imgObj.width,
-                height: imgObj.height,
-                rotation: 0,
-                scale: scale,
-                isAnalyzed: false,
-              },
-              file
-            );
+            addImage({
+              id: crypto.randomUUID(),
+              url: src,
+              x: targetX,
+              y: targetY,
+              width: imgObj.width,
+              height: imgObj.height,
+              rotation: 0,
+              scale: scale,
+              analyzed: false,
+              tags: [],
+              timestamp: Date.now(),
+            });
           };
         };
         reader.readAsDataURL(file);

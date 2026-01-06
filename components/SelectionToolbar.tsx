@@ -131,7 +131,6 @@ export const SelectionToolbar: React.FC = () => {
                         batchMode === 'tag' ? 'Enter tag to apply...' : 'Describe transformation...'
                       }
                       className="w-full glass-input px-3 py-2 text-xs font-mono text-white placeholder-slate-500 rounded-lg outline-none focus:ring-1 focus:ring-indigo-500/50"
-                      autoFocus
                     />
                   </div>
                   <button

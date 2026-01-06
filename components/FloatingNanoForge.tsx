@@ -45,6 +45,11 @@ export const FloatingNanoForge: React.FC<FloatingNanoForgeProps> = ({
   // Store actions
   const performImageEdit = useStore(state => state.performImageEdit);
   const performUpscale = useStore(state => state.performUpscale);
+  const performBackgroundGeneration = useStore(state => state.performBackgroundGeneration);
+  const applyFestiveOverdrive = useStore(state => state.applyFestiveOverdrive);
+  const reanalyzeImage = useStore(state => state.reanalyzeImage);
+  const applyCompositionRule = useStore(state => state.applyCompositionRule);
+  const resetCrop = useStore(state => state.resetCrop);
   const neuralTemperature = useStore(state => state.neuralTemperature);
   const images = useStore(state => state.images);
 
@@ -127,28 +132,23 @@ export const FloatingNanoForge: React.FC<FloatingNanoForgeProps> = ({
   };
 
   const handleFestiveTrigger = (mode: 'snow' | 'lights' | 'magic') => {
-    // TODO: Implement festive mode trigger in store
-    console.debug('Festive mode triggered:', mode);
+    applyFestiveOverdrive(image.id, mode);
   };
 
   const handleBackgroundGen = () => {
-    // TODO: Implement backdrop generation in store
-    console.debug('Backdrop generation requested for:', image.id);
+    performBackgroundGeneration(image.id);
   };
 
   const handleReanalyze = (imageId: string) => {
-    // TODO: Implement image reanalysis in store
-    console.debug('Reanalyze requested for:', imageId);
+    reanalyzeImage(imageId);
   };
 
   const handleApplyCompositionRule = (imageId: string, rule: 'center' | 'thirds' | 'golden') => {
-    // TODO: Implement composition rule application in store
-    console.debug('Applying composition rule:', rule, 'to:', imageId);
+    applyCompositionRule(imageId, rule);
   };
 
   const handleResetCrop = (imageId: string) => {
-    // TODO: Implement crop reset in store
-    console.debug('Reset crop for:', imageId);
+    resetCrop(imageId);
   };
 
   const handleApplyEdit = (editPrompt: string) => {
